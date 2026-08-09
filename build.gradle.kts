@@ -60,7 +60,7 @@ intellijPlatform {
         // Describe this version only; the Marketplace keeps the history of earlier ones.
         changeNotes =
             """
-            <h4>0.1.0</h4>
+            <h4>${project.version}</h4>
             <ul>
               <li>Create merge requests for all open projects in one dialog</li>
               <li>GitLab, GitHub, Gitea and Forgejo, hosted and self managed</li>

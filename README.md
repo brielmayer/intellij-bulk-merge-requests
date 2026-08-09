@@ -4,6 +4,8 @@
 
 **One dialog. Every open project. All merge requests at once.**
 
+[![Get from JetBrains Marketplace](https://img.shields.io/badge/JetBrains%20Marketplace-Install-000000?style=flat-square&logo=jetbrains&logoColor=white)](https://plugins.jetbrains.com/plugin/33450-bulk-merge-requests)
+[![Downloads](https://img.shields.io/jetbrains/plugin/d/33450?style=flat-square)](https://plugins.jetbrains.com/plugin/33450-bulk-merge-requests)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
 [![IntelliJ IDEA](https://img.shields.io/badge/IntelliJ%20IDEA-2025.3+-000000?style=flat-square&logo=intellijidea&logoColor=white)](https://www.jetbrains.com/idea/)
 [![GitLab](https://img.shields.io/badge/GitLab-FC6D26?style=flat-square&logo=gitlab&logoColor=white)](#)
@@ -19,6 +21,11 @@ Pick the source and target branch per repository in a single table, confirm once
 request per repository. A repository that fails never stops the others.
 
 Hosted services and your own servers alike.
+
+## Install
+
+`Settings | Plugins | Marketplace`, search for **Bulk Merge Requests**, install, restart. Or straight
+from the [Marketplace page](https://plugins.jetbrains.com/plugin/33450-bulk-merge-requests).
 
 ## Setup
 
