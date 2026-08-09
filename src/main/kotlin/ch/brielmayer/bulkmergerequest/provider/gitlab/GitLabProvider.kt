@@ -3,6 +3,8 @@ package ch.brielmayer.bulkmergerequest.provider.gitlab
 import ch.brielmayer.bulkmergerequest.BulkMergeRequestBundle
 import ch.brielmayer.bulkmergerequest.core.settings.BulkMergeRequestSettings
 import ch.brielmayer.bulkmergerequest.core.settings.TokenStore
+import ch.brielmayer.bulkmergerequest.provider.AccessCheck
+import ch.brielmayer.bulkmergerequest.provider.AccessProbe
 import ch.brielmayer.bulkmergerequest.provider.GitHostProvider
 import ch.brielmayer.bulkmergerequest.provider.RepositoryTarget
 import ch.brielmayer.bulkmergerequest.provider.RequestResult
@@ -48,6 +50,16 @@ class GitLabProvider : GitHostProvider {
                 BulkMergeRequestBundle.message("error.network", remote.host, e.message ?: e.javaClass.simpleName),
                 e,
             )
+        }
+    }
+
+    override fun checkAccess(host: String, token: String): AccessCheck = AccessProbe.probe(host) { instanceUrl ->
+        try {
+            AccessCheck.Granted(GitLabApiClient(instanceUrl, token).currentUser())
+        } catch (e: GitLabApiException) {
+            // Caught here rather than in the probe: the host answered, so trying another scheme
+            // would only hide the real reason.
+            AccessCheck.Denied(e.message.orEmpty())
         }
     }
 

@@ -8,6 +8,9 @@ import com.intellij.ide.passwordSafe.PasswordSafe
 /**
  * Access tokens, keyed per host. Backed by PasswordSafe. Tokens are never written to the settings
  * XML and never logged.
+ *
+ * Every function here talks to the OS credential store, which the platform classifies as a slow
+ * operation. Callers must be off the EDT, otherwise the IDE logs a SlowOperations assertion.
  */
 object TokenStore {
 

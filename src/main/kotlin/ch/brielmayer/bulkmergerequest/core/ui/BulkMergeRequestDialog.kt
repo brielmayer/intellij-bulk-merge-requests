@@ -11,6 +11,7 @@ import ch.brielmayer.bulkmergerequest.core.settings.Templates
 import ch.brielmayer.bulkmergerequest.provider.GitHostProvider
 import ch.brielmayer.bulkmergerequest.provider.RequestOption
 import com.intellij.openapi.options.ShowSettingsUtil
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogPanel
@@ -59,6 +60,8 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     private val settings = BulkMergeRequestSettings.getInstance()
 
+    // Read once as a starting point. What the user types here applies to this run only: the settings
+    // page owns the defaults, and a one off title must not quietly replace them.
     private var titleTemplate: String = settings.state.titleTemplate ?: Templates.DEFAULT_TITLE
     private var descriptionTemplate: String = settings.state.descriptionTemplate.orEmpty()
     private var removeSourceBranch: Boolean = settings.state.removeSourceBranch
@@ -240,7 +243,14 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     /** Re-resolves providers and tokens after the settings changed, keeping the branch choices. */
     private fun refreshRows() {
-        RepoCollector.refreshProviders(rows)
+        // Resolving tokens reads the credential store, which is a slow operation and must not run on
+        // the EDT.
+        ProgressManager.getInstance().runProcessWithProgressSynchronously(
+            { RepoCollector.refreshProviders(rows) },
+            BulkMergeRequestBundle.message("task.collecting"),
+            false,
+            project,
+        )
         tableModel.fireTableDataChanged()
         updateOkButton()
     }
@@ -281,7 +291,6 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     override fun doOKAction() {
         optionsPanel.apply()
-        rememberOptions()
         super.doOKAction()
     }
 
@@ -293,14 +302,6 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
         removeSourceBranch = removeSourceBranch,
         squash = squash,
     )
-
-    /** The dialog doubles as the fastest way to change the defaults, so the last run wins. */
-    private fun rememberOptions() {
-        settings.state.titleTemplate = titleTemplate
-        settings.state.descriptionTemplate = descriptionTemplate
-        settings.state.removeSourceBranch = removeSourceBranch
-        settings.state.squash = squash
-    }
 
     private fun updateOkButton(note: String? = null) {
         val selected = selectedRows()
@@ -352,11 +353,12 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
             minWidth = JBUI.scale(32)
             maxWidth = JBUI.scale(32)
         }
-        columnModel.getColumn(1).preferredWidth = JBUI.scale(150)
-        columnModel.getColumn(2).preferredWidth = JBUI.scale(160)
+        columnModel.getColumn(1).preferredWidth = JBUI.scale(140)
+        columnModel.getColumn(2).preferredWidth = JBUI.scale(150)
         columnModel.getColumn(3).preferredWidth = JBUI.scale(190)
         columnModel.getColumn(4).preferredWidth = JBUI.scale(190)
-        columnModel.getColumn(5).preferredWidth = JBUI.scale(210)
+        columnModel.getColumn(5).preferredWidth = JBUI.scale(90)
+        columnModel.getColumn(6).preferredWidth = JBUI.scale(190)
     }
 
     private fun columns(): Array<ColumnInfo<RepoRow, *>> = arrayOf(
@@ -382,6 +384,9 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
             row.targetBranch =
                 v
         }),
+        object : ColumnInfo<RepoRow, String>(BulkMergeRequestBundle.message("column.provider")) {
+            override fun valueOf(item: RepoRow): String = item.providerName()
+        },
         object : ColumnInfo<RepoRow, String>(BulkMergeRequestBundle.message("column.status")) {
             override fun valueOf(item: RepoRow): String = item.status()
 
@@ -469,6 +474,6 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     private companion object {
         const val COLUMN_SELECTED = 0
-        const val COLUMN_COUNT = 6
+        const val COLUMN_COUNT = 7
     }
 }

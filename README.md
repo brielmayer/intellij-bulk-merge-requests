@@ -37,6 +37,10 @@ from the [Marketplace page](https://plugins.jetbrains.com/plugin/33450-bulk-merg
 | **Provider** | GitLab, GitHub, Gitea or Forgejo |
 | **Token** | GitLab: scope `api` · GitHub: `repo`, or *Pull requests: read and write* · Gitea and Forgejo: write access |
 
+**Test Connection** tries the host and token out and tells you which account they belong to, which
+catches a token pasted from the wrong account. Saving runs the same check and warns you if it fails,
+but never stops you: a server may simply be unreachable at that moment.
+
 Tokens go into the IDE password safe, never into a settings file or a log.
 
 **2.** Open the projects you want. One window with several repositories works as well as several
@@ -64,7 +68,7 @@ Click a branch cell to pick from that repository's branches, or type one that do
 |---|---|
 | No Git remote | Nothing to push to |
 | No provider configured for this host | Add the host in the settings. The link at the bottom of the dialog takes you there, and the rows update when you return |
-| No access token for this host | Same place |
+| No access token | Same place |
 | Source and target are identical | Pick another branch in that row |
 
 ## After the run
@@ -82,10 +86,10 @@ expired.
 | | |
 |---|---|
 | Default target branch | Preselected when a repository has a branch with that name |
-| Title and description template | Defaults for the dialog, which also remembers your last run |
+| Title and description template | Prefilled in the dialog. Changing them there applies to that run only |
 | Delete source branch when merged | On |
 | Squash commits when merging | Off |
-| Parallel requests | How many are created at once. 4 by default, 1 sends them one after another |
+| Repositories at a time | How many are handled simultaneously. 4 by default; 1 works through them one after another |
 
 ## License
 

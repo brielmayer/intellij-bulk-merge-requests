@@ -52,6 +52,23 @@ class GitLabApiClient(
             .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
             .build()
 
+        return json.decodeFromString<MergeRequest>(execute(request))
+    }
+
+    /** The account the token belongs to. Changes nothing, so it is safe as an access check. */
+    fun currentUser(): String {
+        val request = HttpRequest.newBuilder()
+            .uri(GitLabEndpoints.currentUser(baseUrl))
+            .header("PRIVATE-TOKEN", token)
+            .header("Accept", "application/json")
+            .timeout(REQUEST_TIMEOUT)
+            .GET()
+            .build()
+
+        return json.decodeFromString<Account>(execute(request)).username
+    }
+
+    private fun execute(request: HttpRequest): String {
         val response = try {
             httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
         } catch (e: InterruptedException) {
@@ -62,7 +79,7 @@ class GitLabApiClient(
         if (response.statusCode() !in 200..299) {
             throw GitLabApiException(extractErrorMessage(response.body(), response.statusCode()), response.statusCode())
         }
-        return json.decodeFromString<MergeRequest>(response.body())
+        return response.body()
     }
 
     /**
@@ -91,6 +108,9 @@ class GitLabApiClient(
         @SerialName("remove_source_branch") val removeSourceBranch: Boolean = false,
         val squash: Boolean = false,
     )
+
+    @Serializable
+    data class Account(val username: String)
 
     @Serializable
     data class MergeRequest(@SerialName("web_url") val webUrl: String, val iid: Long = 0, val title: String = "")

@@ -3,6 +3,8 @@ package ch.brielmayer.bulkmergerequest.provider.github
 import ch.brielmayer.bulkmergerequest.BulkMergeRequestBundle
 import ch.brielmayer.bulkmergerequest.core.settings.BulkMergeRequestSettings
 import ch.brielmayer.bulkmergerequest.core.settings.TokenStore
+import ch.brielmayer.bulkmergerequest.provider.AccessCheck
+import ch.brielmayer.bulkmergerequest.provider.AccessProbe
 import ch.brielmayer.bulkmergerequest.provider.GitHostProvider
 import ch.brielmayer.bulkmergerequest.provider.RepositoryTarget
 import ch.brielmayer.bulkmergerequest.provider.RequestOption
@@ -63,6 +65,14 @@ class GitHubProvider : GitHostProvider {
                 ),
                 e,
             )
+        }
+    }
+
+    override fun checkAccess(host: String, token: String): AccessCheck = AccessProbe.probe(host) { instanceUrl ->
+        try {
+            AccessCheck.Granted(GitHubApiClient(GitHubEndpoints.apiBaseUrl(instanceUrl), token).currentUser())
+        } catch (e: GitHubApiException) {
+            AccessCheck.Denied(e.message.orEmpty())
         }
     }
 

@@ -51,6 +51,24 @@ class GitHubApiClient(
             .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
             .build()
 
+        return json.decodeFromString<PullRequest>(execute(request))
+    }
+
+    /** The account the token belongs to. Changes nothing, so it is safe as an access check. */
+    fun currentUser(): String {
+        val request = HttpRequest.newBuilder()
+            .uri(GitHubEndpoints.currentUser(baseUrl))
+            .header("Authorization", "Bearer $token")
+            .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", API_VERSION)
+            .timeout(REQUEST_TIMEOUT)
+            .GET()
+            .build()
+
+        return json.decodeFromString<Account>(execute(request)).login
+    }
+
+    private fun execute(request: HttpRequest): String {
         val response = try {
             httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
         } catch (e: InterruptedException) {
@@ -61,7 +79,7 @@ class GitHubApiClient(
         if (response.statusCode() !in 200..299) {
             throw GitHubApiException(extractErrorMessage(response.body(), response.statusCode()), response.statusCode())
         }
-        return json.decodeFromString<PullRequest>(response.body())
+        return response.body()
     }
 
     /**
@@ -93,6 +111,9 @@ class GitHubApiClient(
         val base: String,
         val body: String? = null,
     )
+
+    @Serializable
+    data class Account(val login: String)
 
     @Serializable
     data class PullRequest(@SerialName("html_url") val htmlUrl: String, val number: Long = 0)

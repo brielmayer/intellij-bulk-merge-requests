@@ -39,13 +39,20 @@ class RepoRow(
     val selectableByDefault: Boolean
         get() = isReady && sourceBranch != targetBranch
 
-    /** Short explanation shown in the status column. */
+    /** Which host will handle this row. Empty when no provider claims the remote. */
+    fun providerName(): String = provider?.displayName.orEmpty()
+
+    /**
+     * Why this row will or will not run. Deliberately says nothing about the provider: that is its
+     * own column, and a status that shows a host name when everything is fine answers a question
+     * nobody asked.
+     */
     fun status(): String = when {
         remoteUrl == null -> BulkMergeRequestBundle.message("row.status.noRemote")
         provider == null -> BulkMergeRequestBundle.message("row.status.noProvider")
         branches.isEmpty() -> BulkMergeRequestBundle.message("row.status.noBranches")
-        !hasToken -> BulkMergeRequestBundle.message("row.status.noToken", provider!!.displayName)
+        !hasToken -> BulkMergeRequestBundle.message("row.status.noToken")
         sourceBranch == targetBranch -> BulkMergeRequestBundle.message("row.status.sameBranch")
-        else -> provider!!.displayName
+        else -> BulkMergeRequestBundle.message("row.status.ready")
     }
 }

@@ -4,8 +4,11 @@ import ch.brielmayer.bulkmergerequest.BulkMergeRequestBundle
 import ch.brielmayer.bulkmergerequest.core.repo.RepoCollector
 import ch.brielmayer.bulkmergerequest.core.run.RequestExecutor
 import ch.brielmayer.bulkmergerequest.provider.GitHostProvider
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.options.ConfigurationException
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.dsl.builder.Align
@@ -155,7 +158,15 @@ class BulkMergeRequestConfigurable : BoundConfigurable(BulkMergeRequestBundle.me
         }
 
         super.apply()
-        applyHosts()
+
+        // Writing and moving credentials talks to the OS keychain, which must not happen on the EDT.
+        ProgressManager.getInstance().runProcessWithProgressSynchronously(
+            { applyHosts() },
+            BulkMergeRequestBundle.message("settings.hosts.saving"),
+            false,
+            null,
+        )
+        refreshHosts()
     }
 
     override fun reset() {
@@ -180,9 +191,14 @@ class BulkMergeRequestConfigurable : BoundConfigurable(BulkMergeRequestBundle.me
         val token = TokenStore.getToken(from) ?: return
         TokenStore.setToken(entry.host, token)
         TokenStore.setToken(from, null)
-        entry.hasToken = true
+        entry.tokenState = TokenState.STORED
     }
 
+    /**
+     * Builds the rows without touching the credential store: reading it is a slow operation and the
+     * settings page is created on the EDT. Whether a token exists is filled in afterwards by
+     * [resolveTokenStates].
+     */
     private fun loadEntries() {
         entries.clear()
         settings.state.hosts.forEach { config ->
@@ -192,13 +208,39 @@ class BulkMergeRequestConfigurable : BoundConfigurable(BulkMergeRequestBundle.me
                     HostEntry(
                         host = host,
                         providerId = config.providerId.orEmpty(),
-                        hasToken = TokenStore.hasToken(host),
+                        tokenState = TokenState.UNKNOWN,
                         originalHost = host,
                     ),
                 )
             }
         }
         originalEntries = entries.map { it.copyOf() }
+        resolveTokenStates()
+    }
+
+    private fun resolveTokenStates() {
+        val hosts = entries.filter { it.tokenState == TokenState.UNKNOWN }.map { it.host }
+        if (hosts.isEmpty()) return
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            // The length comes from the same read that answers whether a token exists, so showing a
+            // filler of the right size costs nothing extra. The token itself is not kept.
+            val storedLengths = hosts.associateWith { TokenStore.getToken(it)?.length }
+            ApplicationManager.getApplication().invokeLater(
+                {
+                    entries.forEach { entry ->
+                        if (entry.tokenState == TokenState.UNKNOWN) {
+                            val length = storedLengths[entry.host]
+                            entry.tokenState = if (length != null) TokenState.STORED else TokenState.MISSING
+                            entry.tokenLength = length ?: 0
+                        }
+                    }
+                    originalEntries = entries.map { it.copyOf() }
+                    refreshHosts()
+                },
+                ModalityState.any(),
+            )
+        }
     }
 
     private fun hostsModified(): Boolean = entries.size != originalEntries.size ||
@@ -215,7 +257,7 @@ class BulkMergeRequestConfigurable : BoundConfigurable(BulkMergeRequestBundle.me
         entries.forEach { entry ->
             entry.newToken?.let { token ->
                 TokenStore.setToken(entry.host, token)
-                entry.hasToken = true
+                entry.tokenState = TokenState.STORED
                 entry.newToken = null
             }
             entry.originalHost = entry.host
@@ -226,7 +268,6 @@ class BulkMergeRequestConfigurable : BoundConfigurable(BulkMergeRequestBundle.me
             .toMutableList()
 
         originalEntries = entries.map { it.copyOf() }
-        refreshHosts()
     }
 
     private fun hostColumns(): Array<ColumnInfo<HostEntry, *>> = arrayOf(
@@ -240,8 +281,9 @@ class BulkMergeRequestConfigurable : BoundConfigurable(BulkMergeRequestBundle.me
         object : ColumnInfo<HostEntry, String>(BulkMergeRequestBundle.message("settings.column.token")) {
             override fun valueOf(item: HostEntry): String = when {
                 item.newToken != null -> BulkMergeRequestBundle.message("settings.token.new")
-                item.hasToken -> BulkMergeRequestBundle.message("settings.token.stored")
-                else -> BulkMergeRequestBundle.message("settings.token.missing")
+                item.tokenState == TokenState.STORED -> BulkMergeRequestBundle.message("settings.token.stored")
+                item.tokenState == TokenState.MISSING -> BulkMergeRequestBundle.message("settings.token.missing")
+                else -> BulkMergeRequestBundle.message("settings.token.unknown")
             }
         },
     )

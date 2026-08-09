@@ -49,6 +49,23 @@ class GiteaApiClient(
             .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
             .build()
 
+        return json.decodeFromString<PullRequest>(execute(request))
+    }
+
+    /** The account the token belongs to. Changes nothing, so it is safe as an access check. */
+    fun currentUser(): String {
+        val request = HttpRequest.newBuilder()
+            .uri(GiteaEndpoints.currentUser(baseUrl))
+            .header("Authorization", "token $token")
+            .header("Accept", "application/json")
+            .timeout(REQUEST_TIMEOUT)
+            .GET()
+            .build()
+
+        return json.decodeFromString<Account>(execute(request)).login
+    }
+
+    private fun execute(request: HttpRequest): String {
         val response = try {
             httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
         } catch (e: InterruptedException) {
@@ -59,7 +76,7 @@ class GiteaApiClient(
         if (response.statusCode() !in 200..299) {
             throw GiteaApiException(extractErrorMessage(response.body(), response.statusCode()), response.statusCode())
         }
-        return json.decodeFromString<PullRequest>(response.body())
+        return response.body()
     }
 
     /** Gitea answers with `{"message": "..."}`, older versions with `{"error": "..."}`. */
@@ -77,6 +94,9 @@ class GiteaApiClient(
         val base: String,
         val body: String? = null,
     )
+
+    @Serializable
+    data class Account(val login: String)
 
     @Serializable
     data class PullRequest(@SerialName("html_url") val htmlUrl: String, val number: Long = 0)

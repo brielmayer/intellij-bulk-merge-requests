@@ -1,6 +1,18 @@
 package ch.brielmayer.bulkmergerequest.core.settings
 
 /**
+ * Whether a host has a stored access token.
+ *
+ * [UNKNOWN] exists because the credential store must not be read on the EDT: the settings page opens
+ * with the answer still outstanding and fills it in once a background thread has it.
+ */
+enum class TokenState {
+    UNKNOWN,
+    STORED,
+    MISSING,
+}
+
+/**
  * Editing model for one host row in the settings page.
  *
  * The token itself is never read back from PasswordSafe for display, only whether one exists.
@@ -9,7 +21,12 @@ package ch.brielmayer.bulkmergerequest.core.settings
 class HostEntry(
     var host: String,
     var providerId: String,
-    var hasToken: Boolean,
+    var tokenState: TokenState,
+    /**
+     * Length of the stored token, so the edit dialog can show a filler of the right size. The token
+     * itself is never kept here.
+     */
+    var tokenLength: Int = 0,
     var newToken: String? = null,
     /**
      * The host key this entry was last stored under, or `null` for an entry added in this session.
@@ -18,7 +35,7 @@ class HostEntry(
      */
     var originalHost: String? = null,
 ) {
-    fun copyOf(): HostEntry = HostEntry(host, providerId, hasToken, newToken, originalHost)
+    fun copyOf(): HostEntry = HostEntry(host, providerId, tokenState, tokenLength, newToken, originalHost)
 
     fun sameAs(other: HostEntry): Boolean =
         host == other.host && providerId == other.providerId && newToken == other.newToken

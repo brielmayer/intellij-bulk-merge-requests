@@ -34,6 +34,18 @@ interface GitHostProvider {
     /** Creates the merge/pull request. Runs on a background thread, never on the EDT. */
     fun createRequest(target: RepositoryTarget, spec: RequestSpec): RequestResult
 
+    /**
+     * Tries the host and token out, so a wrong token is caught while it is being entered instead of
+     * in the middle of a batch.
+     *
+     * [host] is the key as stored in the settings, for example `gitlab.com` or `localhost:8929`. It
+     * carries no scheme, so an implementation has to decide how to reach it.
+     *
+     * Runs on a background thread, never on the EDT. Defaults to [AccessCheck.NotSupported] so a
+     * provider that cannot check keeps compiling and the UI can say so instead of implying success.
+     */
+    fun checkAccess(host: String, token: String): AccessCheck = AccessCheck.NotSupported
+
     companion object {
         val EP_NAME: ExtensionPointName<GitHostProvider> =
             ExtensionPointName.create("ch.brielmayer.bulkmergerequest.gitHostProvider")

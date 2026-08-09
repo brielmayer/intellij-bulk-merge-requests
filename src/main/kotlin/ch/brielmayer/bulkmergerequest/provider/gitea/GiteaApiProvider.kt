@@ -3,6 +3,8 @@ package ch.brielmayer.bulkmergerequest.provider.gitea
 import ch.brielmayer.bulkmergerequest.BulkMergeRequestBundle
 import ch.brielmayer.bulkmergerequest.core.settings.BulkMergeRequestSettings
 import ch.brielmayer.bulkmergerequest.core.settings.TokenStore
+import ch.brielmayer.bulkmergerequest.provider.AccessCheck
+import ch.brielmayer.bulkmergerequest.provider.AccessProbe
 import ch.brielmayer.bulkmergerequest.provider.GitHostProvider
 import ch.brielmayer.bulkmergerequest.provider.RepositoryTarget
 import ch.brielmayer.bulkmergerequest.provider.RequestOption
@@ -37,6 +39,14 @@ abstract class GiteaApiProvider : GitHostProvider {
 
         val hostname = repository.host.substringBefore(':')
         return hostname in wellKnownHosts || hostname.startsWith(hostPrefix)
+    }
+
+    override fun checkAccess(host: String, token: String): AccessCheck = AccessProbe.probe(host) { instanceUrl ->
+        try {
+            AccessCheck.Granted(GiteaApiClient(GiteaEndpoints.apiBaseUrl(instanceUrl), token).currentUser())
+        } catch (e: GiteaApiException) {
+            AccessCheck.Denied(e.message.orEmpty())
+        }
     }
 
     override fun createRequest(target: RepositoryTarget, spec: RequestSpec): RequestResult {

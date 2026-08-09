@@ -1,6 +1,7 @@
 import com.diffplug.spotless.LineEnding
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import java.time.Duration
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -32,6 +33,8 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.mockwebserver)
+    testImplementation(libs.testcontainers)
+    testImplementation(libs.testcontainers.junit)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
@@ -130,6 +133,25 @@ spotless {
     }
 }
 
+/**
+ * The container tests need Docker and minutes rather than seconds, so the everyday run stays free of
+ * them: `./gradlew test` skips them, `./gradlew test -PintegrationTests` runs everything.
+ *
+ * This is a flag on the existing task rather than a task of its own on purpose. The IntelliJ Platform
+ * plugin configures `test` with a classpath, system properties and JVM arguments that point at the
+ * extracted IDE, and a second Test task would have to reproduce all of it.
+ */
+val runIntegrationTests = providers.gradleProperty("integrationTests").isPresent
+
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        if (!runIntegrationTests) {
+            excludeTags("integration")
+        }
+    }
+    if (runIntegrationTests) {
+        // GitLab alone needs several minutes to boot.
+        timeout = Duration.ofMinutes(45)
+        outputs.upToDateWhen { false }
+    }
 }
