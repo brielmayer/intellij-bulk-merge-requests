@@ -1,131 +1,87 @@
+<div align="center">
+
 # Bulk Merge Requests
 
-Creates merge requests for **all your open projects** in one dialog.
+**One dialog. Every open project. All merge requests at once.**
 
-Instead of visiting every repository in turn, you pick the source and target branch per repository in
-a single table, following the layout of the IDE's own Push dialog, and confirm once. One merge
-request is created per selected repository.
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square)](LICENSE)
+[![IntelliJ IDEA](https://img.shields.io/badge/IntelliJ%20IDEA-2025.3+-000000?style=flat-square&logo=intellijidea&logoColor=white)](https://www.jetbrains.com/idea/)
+[![GitLab](https://img.shields.io/badge/GitLab-FC6D26?style=flat-square&logo=gitlab&logoColor=white)](#)
+[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white)](#)
+[![Gitea](https://img.shields.io/badge/Gitea-609926?style=flat-square&logo=gitea&logoColor=white)](#)
+[![Forgejo](https://img.shields.io/badge/Forgejo-FB923C?style=flat-square&logo=forgejo&logoColor=white)](#)
 
-A repository that fails never stops the others. You get one summary at the end, with direct links to
-everything that was created and a clear reason for everything that was not.
-
-Supported today: **GitLab**, **GitHub**, **Gitea** and **Forgejo**, each on their hosted service as well as on
-your own server.
+</div>
 
 <!-- Screenshot of the batch dialog. Replace docs/images/bulk-merge-requests-dialog.png with your
      own capture; keep the file name so this link keeps working. -->
 ![The Bulk Merge Requests dialog with one row per repository](docs/images/bulk-merge-requests-dialog.png)
 
-## Requirements
+Pick the source and target branch per repository in a single table, confirm once, and get one merge
+request per repository. A repository that fails never stops the others.
 
-* IntelliJ IDEA 2025.3 or newer, any edition with the bundled Git plugin
-* An access token for your host:
-  * GitLab: a personal access token with the `api` scope
-  * GitHub: a personal access token that may create pull requests (classic: `repo`, fine grained: Pull requests,
-    read and write)
-  * Gitea or Forgejo: an access token with write access to the repository
+Hosted services and your own servers alike.
 
-## Getting started
+## Setup
 
-### 1. Add your host
+**1.** `Settings | Tools | Bulk Merge Requests` → **+**
 
-`Settings | Tools | Bulk Merge Requests`, then **+** under *Hosts and access tokens*.
-
-| Field | |
+| | |
 |---|---|
-| Host | `gitlab.com`, `github.com`, `codeberg.org`, or your own server such as `git.example.com`. Hosts of your open projects are already offered in the dropdown. Pasting a full URL works too, it gets cleaned up |
-| Provider | GitLab, GitHub, Gitea or Forgejo |
-| Access token | See the requirements above. In GitLab you create one under *Edit profile, Access Tokens*, in GitHub under *Settings, Developer settings*, in Gitea and Forgejo under *Settings, Applications* |
+| **Host** | `gitlab.com`, `github.com`, `codeberg.org` or your own server. Hosts of your open projects are already in the dropdown, and pasting a full URL works |
+| **Provider** | GitLab, GitHub, Gitea or Forgejo |
+| **Token** | GitLab: scope `api` · GitHub: `repo`, or *Pull requests: read and write* · Gitea and Forgejo: write access |
 
-Your token is stored in the IDE password safe, the same place the IDE keeps your other credentials.
-It is never written to a settings file and never appears in a log.
+Tokens go into the IDE password safe, never into a settings file or a log.
 
-### 2. Create the merge requests
+**2.** Open the projects you want. One window with several repositories works as well as several
+windows.
 
-Open the projects you want to work with. One window with several repositories works just as well as
-several windows.
-
-Then `Git | Bulk Merge Requests…`, review the table, and confirm.
+**3.** `Git | Bulk Merge Requests…`
 
 ## The dialog
 
-At the top you set what applies to every merge request: the title, an optional description, and
-whether the source branch should be deleted and the commits squashed on merge.
-
-Those last two only exist on GitLab. GitHub, Gitea and Forgejo decide both when a pull request is
-merged, not when it is opened, so the checkboxes switch off and name the hosts that ignore them as
-soon as your selection contains only such repositories.
-
-The table below has one row per repository.
-
 | | |
 |---|---|
-| **Source for all** / **Target for all** | Sets one branch across the board. Repositories that do not have that branch keep the one they had, so nothing is silently pointed at a branch that does not exist |
-| **Filter** | Narrows the table by project, repository or branch name. *Select all* and *Deselect all* apply to what you currently see |
-| **Status** | Says why a row cannot run |
+| **Title**, **Description** | Templates, filled in per repository |
+| **Source for all**, **Target for all** | Sets one branch everywhere. Repositories without that branch keep theirs |
+| **Filter** | Matches project, repository and branch names. *Select all* and *Deselect all* apply to what you see |
+| **Delete source branch**, **Squash** | GitLab only. The other hosts decide this when merging, so the boxes switch off and say so |
 
-Rows that cannot produce a merge request are greyed out and cannot be selected. The status column
-tells you which of these applies:
+Placeholders: `{project}` `{repo}` `{branch}` `{source}` `{target}`. Unknown ones stay untouched, so
+a typo is visible instead of silently gone. Default title: `Merge {branch} into {target}`.
 
-| Status | What to do |
+Click a branch cell to pick from that repository's branches, or type one that does not exist yet.
+
+### Greyed out rows
+
+| Status | |
 |---|---|
-| No Git remote | The repository has no remote configured |
-| No provider configured for this host | The host is missing from your settings. Use the link at the bottom of the dialog; the rows update as soon as you come back |
-| No access token for this host | Same place, add the token |
-| Source and target are identical | Pick a different branch in that row |
-
-Click a branch cell to choose from that repository's branches. You can also type a name that does not
-exist yet.
-
-The button tells you what will happen: *Create 12 Merge Requests*.
-
-## Titles and descriptions
-
-Title and description are templates, filled in per repository. Available placeholders:
-
-| Placeholder | |
-|---|---|
-| `{project}` | Name of the IDE project |
-| `{repo}` | Name of the repository |
-| `{branch}` | Source branch, same as `{source}` |
-| `{source}` | Source branch |
-| `{target}` | Target branch |
-
-The default title is `Merge {branch} into {target}`.
-
-Anything the plugin does not recognise is left as it is, so a typo stays visible instead of quietly
-disappearing from your titles.
+| No Git remote | Nothing to push to |
+| No provider configured for this host | Add the host in the settings. The link at the bottom of the dialog takes you there, and the rows update when you return |
+| No access token for this host | Same place |
+| Source and target are identical | Pick another branch in that row |
 
 ## After the run
 
-A notification summarises the result, for example *Created 12 of 14 Merge Requests*.
+One notification, for example *Created 12 of 14 Merge Requests*.
 
-If anything failed, a result window opens listing every repository with its link or its error
-message. From there you can open all created merge requests at once, copy the links, or retry only
-the ones that failed. Double clicking a row opens that merge request in your browser.
+If anything failed, a window lists every repository with its link or its error, and lets you open
+them all, copy the links, or **retry only the failed ones**. Double click a row to open it.
 
-Common reasons a single repository fails:
-
-* The source branch was never pushed, so the server does not know it
-* A merge request for this branch combination already exists
-* The token is missing the `api` scope, or has expired
+Usual suspects: the source branch was never pushed, a merge request already exists, or the token
+expired.
 
 ## Settings
 
-`Settings | Tools | Bulk Merge Requests`
-
 | | |
 |---|---|
-| Default target branch | Preselected whenever a repository has a branch with that name |
-| Title template | Default title, see the placeholders above |
-| Description template | Default description, may stay empty |
-| Delete source branch when merged | On by default |
-| Squash commits when merging | Off by default |
-| Parallel requests | How many merge requests are created at the same time. The default of 4 keeps a large batch fast; set it to 1 to send them strictly one after another |
+| Default target branch | Preselected when a repository has a branch with that name |
+| Title and description template | Defaults for the dialog, which also remembers your last run |
+| Delete source branch when merged | On |
+| Squash commits when merging | Off |
+| Parallel requests | How many are created at once. 4 by default, 1 sends them one after another |
 
-The dialog remembers the title, description and the two checkboxes from your last run, so a workflow
-you repeat is already set up the next time.
+## License
 
----
-
-Brielmayer Consulting GmbH
+[Apache 2.0](LICENSE) · Copyright 2026 Brielmayer Consulting GmbH
