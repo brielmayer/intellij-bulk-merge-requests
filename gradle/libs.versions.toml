@@ -3,6 +3,7 @@
 kotlin = "2.3.21"
 intellijPlatform = "2.18.1"
 spotless = "8.9.0"
+changelog = "2.5.0"
 ktlint = "1.8.0"
 
 # The IDE this plugin is built against. sinceBuild in build.gradle.kts follows from it.
@@ -27,3 +28,4 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 intellij-platform = { id = "org.jetbrains.intellij.platform", version.ref = "intellijPlatform" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+changelog = { id = "org.jetbrains.changelog", version.ref = "changelog" }

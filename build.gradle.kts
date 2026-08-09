@@ -1,4 +1,5 @@
 import com.diffplug.spotless.LineEnding
+import org.jetbrains.changelog.Changelog
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import java.time.Duration
@@ -8,10 +9,11 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.intellij.platform)
     alias(libs.plugins.spotless)
+    alias(libs.plugins.changelog)
 }
 
 group = "ch.brielmayer"
-version = "0.1.0"
+version = "0.2.0"
 
 repositories {
     mavenCentral()
@@ -59,18 +61,18 @@ kotlin {
 
 intellijPlatform {
     pluginConfiguration {
-        // Shown on the "What's new" tab of the Marketplace listing and in the IDE's update dialog.
-        // Describe this version only; the Marketplace keeps the history of earlier ones.
-        changeNotes =
-            """
-            <h4>${project.version}</h4>
-            <ul>
-              <li>Create merge requests for all open projects in one dialog</li>
-              <li>GitLab, GitHub, Gitea and Forgejo, hosted and self managed</li>
-              <li>Filter, bulk branch selection and per repository overrides</li>
-              <li>A failing repository never aborts the batch; failures can be retried</li>
-            </ul>
-            """.trimIndent()
+        // Rendered from CHANGELOG.md, so the file in the repository and the "What is new" tab of the
+        // Marketplace listing cannot drift apart.
+        changeNotes = provider {
+            with(changelog) {
+                renderItem(
+                    (getOrNull(project.version.toString()) ?: getUnreleased())
+                        .withHeader(false)
+                        .withEmptySections(false),
+                    Changelog.OutputType.HTML,
+                )
+            }
+        }
 
         ideaVersion {
             sinceBuild = "253"
@@ -154,4 +156,9 @@ tasks.test {
         timeout = Duration.ofMinutes(45)
         outputs.upToDateWhen { false }
     }
+}
+
+changelog {
+    version = project.version.toString()
+    repositoryUrl = "https://github.com/brielmayer/intellij-bulk-merge-requests"
 }
