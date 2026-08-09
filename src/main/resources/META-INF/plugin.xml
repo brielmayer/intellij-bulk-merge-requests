@@ -6,12 +6,16 @@
     <description><![CDATA[
     Creates merge requests for <b>all open projects</b> in a single dialog.
     <br/><br/>
-    Pick the source and target branch per repository — the UX follows the IDE's Push dialog — and the plugin
-    creates one merge request per selected repository. A failing repository never aborts the batch; every
-    result is reported together, with direct links to the created requests.
+    Pick the source and target branch per repository, following the layout of the IDE's own Push dialog,
+    and confirm once. One merge request is created per selected repository. A repository that fails never
+    stops the others: every result is reported together, with direct links to what was created and a clear
+    reason for what was not, and the failed ones can be retried in one click.
     <br/><br/>
-    The first supported hosting provider is <b>GitLab</b> (gitlab.com and self-managed instances).
-    Access tokens are stored in the IDE password safe.
+    Built for workspaces with many repositories: filter the table, set a source or target branch across all
+    of them at once, and override it per repository where needed.
+    <br/><br/>
+    Supported hosts: <b>GitLab</b>, <b>GitHub</b>, <b>Gitea</b> and <b>Forgejo</b>, each on their hosted
+    service as well as on your own server. Access tokens are stored in the IDE password safe.
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>
