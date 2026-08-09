@@ -13,8 +13,6 @@
 
 </div>
 
-<!-- Screenshot of the batch dialog. Replace docs/images/bulk-merge-requests-dialog.png with your
-     own capture; keep the file name so this link keeps working. -->
 ![The Bulk Merge Requests dialog with one row per repository](docs/images/bulk-merge-requests-dialog.png)
 
 Pick the source and target branch per repository in a single table, confirm once, and get one merge
