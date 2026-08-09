@@ -83,6 +83,10 @@ expired.
 
 ## Settings
 
+`Settings | Tools | Bulk Merge Requests`
+
+![The settings page with the defaults and the configured hosts](docs/images/bulk-merge-requests-settings.png)
+
 | | |
 |---|---|
 | Default target branch | Preselected when a repository has a branch with that name |
