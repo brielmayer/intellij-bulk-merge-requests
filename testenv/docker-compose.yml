@@ -1,0 +1,44 @@
+name: bulk-mr-testenv
+
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: bulk-mr-gitlab
+    restart: unless-stopped
+    hostname: localhost
+    shm_size: 256m
+    environment:
+      # The port must appear in external_url, otherwise nginx listens on 80 and the
+      # URLs GitLab hands out (web_url of a merge request!) point at the wrong port.
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:8929'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2224
+        # GitLab rejects weak passwords, and the check trips on any value containing
+        # "password" - the admin account is then silently not created and reconfigure fails.
+        gitlab_rails['initial_root_password'] = 'Bulk-MR-Testenv-2026'
+        # Trim everything this test instance does not need - saves ~1.5 GB RAM and boot time.
+        # Do NOT add grafana[...] here: the key was removed from Omnibus and reading an
+        # unsupported key makes gitlab-ctl reconfigure fail, which crash-loops the container.
+        prometheus_monitoring['enable'] = false
+        registry['enable'] = false
+        gitlab_kas['enable'] = false
+        sidekiq['max_concurrency'] = 6
+        puma['worker_processes'] = 2
+    ports:
+      - "8929:8929"
+      - "2224:22"
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+    healthcheck:
+      test: ["CMD", "/opt/gitlab/bin/gitlab-healthcheck", "--fail", "--max-time", "10"]
+      interval: 20s
+      timeout: 15s
+      retries: 60
+      start_period: 300s
+
+volumes:
+  gitlab-config:
+  gitlab-logs:
+  gitlab-data:

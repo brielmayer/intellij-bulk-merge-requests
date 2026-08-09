@@ -1,0 +1,65 @@
+<idea-plugin>
+    <id>ch.brielmayer.bulkmergerequest</id>
+    <name>Bulk Merge Requests</name>
+    <vendor email="info@brielmayer.ch" url="https://brielmayer.ch">Brielmayer Consulting GmbH</vendor>
+
+    <description><![CDATA[
+    Creates merge requests for <b>all open projects</b> in a single dialog.
+    <br/><br/>
+    Pick the source and target branch per repository — the UX follows the IDE's Push dialog — and the plugin
+    creates one merge request per selected repository. A failing repository never aborts the batch; every
+    result is reported together, with direct links to the created requests.
+    <br/><br/>
+    The first supported hosting provider is <b>GitLab</b> (gitlab.com and self-managed instances).
+    Access tokens are stored in the IDE password safe.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>Git4Idea</depends>
+
+    <resource-bundle>messages.BulkMergeRequestBundle</resource-bundle>
+
+    <extensionPoints>
+        <!-- Additional providers can ship as separate modules or separate plugins. -->
+        <extensionPoint
+            name="gitHostProvider"
+            interface="ch.brielmayer.bulkmergerequest.provider.GitHostProvider"
+            dynamic="true"/>
+    </extensionPoints>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationConfigurable
+            parentId="tools"
+            id="ch.brielmayer.bulkmergerequest.settings"
+            instance="ch.brielmayer.bulkmergerequest.core.settings.BulkMergeRequestConfigurable"
+            bundle="messages.BulkMergeRequestBundle"
+            key="settings.title"/>
+
+        <notificationGroup
+            id="Bulk Merge Requests"
+            displayType="STICKY_BALLOON"
+            bundle="messages.BulkMergeRequestBundle"
+            key="notification.group"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="ch.brielmayer.bulkmergerequest">
+        <gitHostProvider implementation="ch.brielmayer.bulkmergerequest.provider.gitlab.GitLabProvider"/>
+        <gitHostProvider implementation="ch.brielmayer.bulkmergerequest.provider.github.GitHubProvider"/>
+        <gitHostProvider implementation="ch.brielmayer.bulkmergerequest.provider.gitea.GiteaProvider"/>
+        <gitHostProvider implementation="ch.brielmayer.bulkmergerequest.provider.gitea.ForgejoProvider"/>
+    </extensions>
+
+    <actions>
+        <action
+            id="ch.brielmayer.bulkmergerequest.BulkMergeRequestAction"
+            class="ch.brielmayer.bulkmergerequest.core.action.BulkMergeRequestAction"
+            icon="AllIcons.Vcs.Merge">
+            <!--
+              Git.MainMenu is the "Git" menu in the menu bar (attached to VcsGroups by Git4Idea).
+              Git.Menu is a different group - the Git submenu of VcsGlobalGroup - and is not visible
+              in the default UI.
+            -->
+            <add-to-group group-id="Git.MainMenu" anchor="after" relative-to-action="Vcs.Push"/>
+        </action>
+    </actions>
+</idea-plugin>

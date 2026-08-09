@@ -1,0 +1,17 @@
+# Build output
+.gradle/
+build/
+out/
+.kotlin/
+
+# The IntelliJ Platform Gradle Plugin writes the sandbox IDE, downloaded platform
+# artifacts and release metadata here. Thousands of files, none of them ours.
+.intellijPlatform/
+
+# IDE
+.idea/
+*.iml
+
+# Test environment (generated)
+testenv/workspace/
+testenv/.token
