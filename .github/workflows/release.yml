@@ -1,0 +1,56 @@
+name: Release
+
+# A tag builds and drafts, it does not publish. Reaching the Marketplace is a separate, deliberate
+# step: see publish.yml.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The tag and the version in the build script are maintained by hand, and forgetting the bump
+      # would put the wrong number on the Marketplace. Fail here instead.
+      - name: Tag must match the plugin version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(./gradlew properties --quiet | awk '/^version:/ { print $2 }')
+          if [ "$tag" != "$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match version $version in build.gradle.kts" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_ENV"
+
+      - name: Build and test
+        run: ./gradlew build buildPlugin
+
+      # Downloads the target IDEs, which takes a while, so it runs for a release rather than for
+      # every push.
+      - name: Plugin Verifier
+        run: ./gradlew verifyPlugin
+
+      - name: Release notes from CHANGELOG.md
+        run: ./gradlew getChangelog --quiet --no-header > release-notes.md
+
+      # Draft, so the notes and the artifact can be reviewed before anyone can install it.
+      - name: Draft the release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: ${{ env.version }}
+          body_path: release-notes.md
+          files: build/distributions/*.zip

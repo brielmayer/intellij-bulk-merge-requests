@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      integrationTests:
+        description: Also run the container tests (GitLab alone needs several minutes)
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # `build` runs spotlessCheck and the fast tests; the distribution is a separate task.
+      - name: Build and test
+        run: ./gradlew build buildPlugin
+
+      # Docker is available on the runner, but GitLab needs minutes and gigabytes, so the container
+      # tests stay opt in rather than slowing every push.
+      - name: Container tests
+        if: inputs.integrationTests
+        run: ./gradlew test -PintegrationTests
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plugin
+          path: build/distributions/*.zip
