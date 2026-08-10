@@ -65,6 +65,26 @@ class GiteaApiClient(
         return json.decodeFromString<Account>(execute(request)).login
     }
 
+    /**
+     * The open pull request for this branch pair, or `null`. Gitea answers 404 when there is none,
+     * which is a normal outcome here rather than an error.
+     */
+    fun findPullRequest(owner: String, repository: String, source: String, target: String): PullRequest? {
+        val request = HttpRequest.newBuilder()
+            .uri(GiteaEndpoints.findPullRequest(baseUrl, owner, repository, source, target))
+            .header("Authorization", "token $token")
+            .header("Accept", "application/json")
+            .timeout(REQUEST_TIMEOUT)
+            .GET()
+            .build()
+
+        return try {
+            json.decodeFromString<PullRequest>(execute(request))
+        } catch (e: GiteaApiException) {
+            if (e.statusCode == 404) null else throw e
+        }
+    }
+
     private fun execute(request: HttpRequest): String {
         val response = try {
             httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))

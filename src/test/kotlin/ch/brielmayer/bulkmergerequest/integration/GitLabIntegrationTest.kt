@@ -16,6 +16,7 @@ import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -155,6 +156,19 @@ class GitLabIntegrationTest {
 
         assertEquals("true", created.field("squash"))
         assertEquals("true", created.field("force_remove_source_branch"))
+    }
+
+    @Test
+    fun `finds a merge request that already covers the branch pair`() {
+        val branch = "feature/lookup"
+        seedBranch(branch)
+
+        assertNull(client().findMergeRequest(projectPath, branch, "main"))
+
+        val created = client().createMergeRequest(projectPath, spec(branch, "For the lookup"))
+        val found = client().findMergeRequest(projectPath, branch, "main")
+
+        assertEquals(created.iid, found?.iid)
     }
 
     @Test

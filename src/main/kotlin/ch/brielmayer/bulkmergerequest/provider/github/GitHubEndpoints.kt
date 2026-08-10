@@ -28,6 +28,13 @@ object GitHubEndpoints {
 
     fun currentUser(baseUrl: String): URI = ApiUrl.of(baseUrl, "user")
 
+    fun findPullRequest(baseUrl: String, owner: String, repository: String, source: String, target: String): URI =
+        ApiUrl.of(
+            baseUrl,
+            "repos/${ApiUrl.encode(owner)}/${ApiUrl.encode(repository)}/pulls" +
+                "?state=open&head=${ApiUrl.encode("$owner:$source")}&base=${ApiUrl.encode(target)}",
+        )
+
     fun createPullRequest(baseUrl: String, owner: String, repository: String): URI =
         ApiUrl.of(baseUrl, "repos/${ApiUrl.encode(owner)}/${ApiUrl.encode(repository)}/pulls")
 }

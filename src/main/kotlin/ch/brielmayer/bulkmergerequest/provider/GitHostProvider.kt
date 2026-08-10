@@ -35,6 +35,16 @@ interface GitHostProvider {
     fun createRequest(target: RepositoryTarget, spec: RequestSpec): RequestResult
 
     /**
+     * The web URL of an open request from [sourceBranch] to [targetBranch], or `null` if there is
+     * none.
+     *
+     * Lets the dialog say "this one already exists" instead of letting the user run into the hosts
+     * rejection. Runs on a background thread, never on the EDT. Defaults to `null`, so a provider
+     * that cannot look this up simply reports nothing.
+     */
+    fun findExistingRequest(target: RepositoryTarget, sourceBranch: String, targetBranch: String): String? = null
+
+    /**
      * Tries the host and token out, so a wrong token is caught while it is being entered instead of
      * in the middle of a batch.
      *

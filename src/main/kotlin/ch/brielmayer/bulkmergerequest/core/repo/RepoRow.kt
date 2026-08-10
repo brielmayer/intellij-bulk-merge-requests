@@ -27,6 +27,13 @@ class RepoRow(
     var selected: Boolean,
     var sourceBranch: String,
     var targetBranch: String,
+    /**
+     * Web URL of a request that already covers this branch pair, filled in by a background lookup.
+     * `null` means either none exists or nobody has looked yet, which the status keeps apart via
+     * [existingRequestChecked].
+     */
+    var existingRequestUrl: String? = null,
+    var existingRequestChecked: Boolean = false,
 ) {
 
     val host: String? get() = remote?.host
@@ -53,6 +60,7 @@ class RepoRow(
         branches.isEmpty() -> BulkMergeRequestBundle.message("row.status.noBranches")
         !hasToken -> BulkMergeRequestBundle.message("row.status.noToken")
         sourceBranch == targetBranch -> BulkMergeRequestBundle.message("row.status.sameBranch")
+        existingRequestUrl != null -> BulkMergeRequestBundle.message("row.status.alreadyExists")
         else -> BulkMergeRequestBundle.message("row.status.ready")
     }
 }

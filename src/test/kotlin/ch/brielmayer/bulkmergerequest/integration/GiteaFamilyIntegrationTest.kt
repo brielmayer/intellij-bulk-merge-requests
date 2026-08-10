@@ -14,6 +14,7 @@ import java.time.Duration
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -155,6 +156,24 @@ abstract class GiteaFamilyIntegrationTest(
         }
 
         assertTrue(exception.statusCode == 401 || exception.statusCode == 403, "was ${exception.statusCode}")
+    }
+
+    @Test
+    fun `finds a request that already covers the branch pair`() {
+        val branch = "feature/lookup"
+        seedBranch(branch)
+
+        assertNull(client().findPullRequest(user, repository, branch, "main"))
+
+        val created = client().createPullRequest(user, repository, spec(branch, "For the lookup"))
+        val found = client().findPullRequest(user, repository, branch, "main")
+
+        assertEquals(created.number, found?.number)
+    }
+
+    @Test
+    fun `reports nothing for a branch pair without a request`() {
+        assertNull(client().findPullRequest(user, repository, "main", "main"))
     }
 
     @Test

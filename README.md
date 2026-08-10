@@ -53,14 +53,18 @@ windows.
 | | |
 |---|---|
 | **Title**, **Description** | Templates, filled in per repository |
-| **Source for all**, **Target for all** | Sets one branch everywhere. Repositories without that branch keep theirs |
+| **Source for all**, **Target for all** | Sets one branch everywhere, type to search the list. Repositories without that branch keep theirs |
 | **Filter** | Matches project, repository and branch names. *Select all* and *Deselect all* apply to what you see |
+| **Status** | Says whether a row will run. Green is ready, yellow means a request already covers those branches, red needs your attention |
 | **Delete source branch**, **Squash** | GitLab only. The other hosts decide this when merging, so the boxes switch off and say so |
 
 Placeholders: `{project}` `{repo}` `{branch}` `{source}` `{target}`. Unknown ones stay untouched, so
 a typo is visible instead of silently gone. Default title: `Merge {branch} into {target}`.
 
 Click a branch cell to pick from that repository's branches, or type one that does not exist yet.
+
+When a request already covers a row's branches, the row is unchecked and a double click opens the
+existing one.
 
 ### Greyed out rows
 

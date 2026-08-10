@@ -32,6 +32,19 @@ class GitLabProvider : GitHostProvider {
         return hostname == "gitlab.com" || hostname.startsWith("gitlab.") || hostname.contains(".gitlab.")
     }
 
+    override fun findExistingRequest(target: RepositoryTarget, sourceBranch: String, targetBranch: String): String? {
+        val remote = GitLabUrlParser.parse(target.remoteUrl) ?: return null
+        val token = TokenStore.getToken(remote.host) ?: return null
+
+        // A lookup that fails tells the user nothing useful, so it stays silent and the run reports
+        // the real problem.
+        return runCatching {
+            GitLabApiClient(GitLabEndpoints.apiBaseUrl(remote), token)
+                .findMergeRequest(remote.projectPath, sourceBranch, targetBranch)
+                ?.webUrl
+        }.getOrNull()
+    }
+
     override fun createRequest(target: RepositoryTarget, spec: RequestSpec): RequestResult {
         val remote = GitLabUrlParser.parse(target.remoteUrl)
             ?: return RequestResult.Failed(BulkMergeRequestBundle.message("error.unparsableRemote", target.remoteUrl))

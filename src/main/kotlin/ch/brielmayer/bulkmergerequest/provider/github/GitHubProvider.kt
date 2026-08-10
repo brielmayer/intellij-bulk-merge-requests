@@ -41,6 +41,17 @@ class GitHubProvider : GitHostProvider {
         return hostname == "github.com" || hostname.endsWith(".github.com")
     }
 
+    override fun findExistingRequest(target: RepositoryTarget, sourceBranch: String, targetBranch: String): String? {
+        val repository = GitHubUrlParser.parse(target.remoteUrl) ?: return null
+        val token = TokenStore.getToken(repository.host) ?: return null
+
+        return runCatching {
+            GitHubApiClient(GitHubEndpoints.apiBaseUrl(repository.remote), token)
+                .findPullRequest(repository.owner, repository.repository, sourceBranch, targetBranch)
+                ?.htmlUrl
+        }.getOrNull()
+    }
+
     override fun createRequest(target: RepositoryTarget, spec: RequestSpec): RequestResult {
         val repository = GitHubUrlParser.parse(target.remoteUrl)
             ?: return RequestResult.Failed(

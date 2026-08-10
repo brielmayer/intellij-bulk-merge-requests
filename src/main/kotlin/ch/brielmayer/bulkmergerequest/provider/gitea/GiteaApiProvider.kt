@@ -49,6 +49,17 @@ abstract class GiteaApiProvider : GitHostProvider {
         }
     }
 
+    override fun findExistingRequest(target: RepositoryTarget, sourceBranch: String, targetBranch: String): String? {
+        val repository = GiteaUrlParser.parse(target.remoteUrl) ?: return null
+        val token = TokenStore.getToken(repository.host) ?: return null
+
+        return runCatching {
+            GiteaApiClient(GiteaEndpoints.apiBaseUrl(repository.remote), token)
+                .findPullRequest(repository.owner, repository.repository, sourceBranch, targetBranch)
+                ?.htmlUrl
+        }.getOrNull()
+    }
+
     override fun createRequest(target: RepositoryTarget, spec: RequestSpec): RequestResult {
         val repository = GiteaUrlParser.parse(target.remoteUrl)
             ?: return RequestResult.Failed(

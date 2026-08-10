@@ -3,6 +3,7 @@ package ch.brielmayer.bulkmergerequest.core.ui
 import ch.brielmayer.bulkmergerequest.BulkMergeRequestBundle
 import ch.brielmayer.bulkmergerequest.core.repo.RepoCollector
 import ch.brielmayer.bulkmergerequest.core.repo.RepoRow
+import ch.brielmayer.bulkmergerequest.core.run.ExistingRequestScanner
 import ch.brielmayer.bulkmergerequest.core.run.RequestNouns
 import ch.brielmayer.bulkmergerequest.core.run.RunOptions
 import ch.brielmayer.bulkmergerequest.core.settings.BulkMergeRequestConfigurable
@@ -10,6 +11,9 @@ import ch.brielmayer.bulkmergerequest.core.settings.BulkMergeRequestSettings
 import ch.brielmayer.bulkmergerequest.core.settings.Templates
 import ch.brielmayer.bulkmergerequest.provider.GitHostProvider
 import ch.brielmayer.bulkmergerequest.provider.RequestOption
+import com.intellij.ide.BrowserUtil
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.options.ShowSettingsUtil
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
@@ -17,6 +21,7 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
+import com.intellij.ui.ComboboxSpeedSearch
 import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.JBColor
 import com.intellij.ui.SearchTextField
@@ -36,6 +41,8 @@ import com.intellij.util.ui.ListTableModel
 import com.intellij.util.ui.UIUtil
 import java.awt.BorderLayout
 import java.awt.Component
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import javax.swing.DefaultCellEditor
 import javax.swing.JComboBox
 import javax.swing.JComponent
@@ -106,8 +113,81 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
             override fun textChanged(e: DocumentEvent) = applyFilter()
         })
         tableModel.addTableModelListener { updateOkButton() }
+        table.addMouseListener(object : MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) {
+                if (e.clickCount == 2) openExistingRequestAt(e)
+            }
+        })
         tuneColumnWidths()
         updateOkButton()
+        scanForExistingRequests(rows)
+    }
+
+    /** Remembers size and position between openings; a table this wide is worth resizing only once. */
+    override fun getDimensionServiceKey(): String = "ch.brielmayer.bulkmergerequest.BulkMergeRequestDialog"
+
+    /**
+     * Double clicking a row opens the request that already covers its branches.
+     *
+     * Only on cells that are not editable: a double click on a branch cell belongs to its combo box,
+     * and taking it away there would break editing.
+     */
+    private fun openExistingRequestAt(event: MouseEvent) {
+        val viewRow = table.rowAtPoint(event.point)
+        val viewColumn = table.columnAtPoint(event.point)
+        if (viewRow < 0 || viewColumn < 0 || table.isCellEditable(viewRow, viewColumn)) return
+
+        tableModel.getRowValue(table.convertRowIndexToModel(viewRow))
+            .existingRequestUrl
+            ?.let { BrowserUtil.browse(it) }
+    }
+
+    /**
+     * Asks the hosts in the background whether a request for a row's branch pair already exists, and
+     * unchecks the rows that would only run into the host's rejection.
+     *
+     * Deliberately not blocking: the dialog is usable immediately, and rows update as answers arrive.
+     * A lookup that never answers leaves the row exactly as it was.
+     */
+    private fun scanForExistingRequests(candidates: List<RepoRow>) {
+        if (candidates.none { it.isReady }) return
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            ExistingRequestScanner.scan(
+                rows = candidates,
+                concurrency = settings.state.concurrency,
+                isCancelled = { isDisposed },
+            ) { row, result ->
+                ApplicationManager.getApplication().invokeLater(
+                    {
+                        // Discard an answer for a pair the user has meanwhile changed away from.
+                        if (row.sourceBranch == result.sourceBranch && row.targetBranch == result.targetBranch) {
+                            row.existingRequestChecked = true
+                            row.existingRequestUrl = result.existingUrl
+                            if (result.existingUrl != null) row.selected = false
+                            tableModel.fireTableDataChanged()
+                            updateOkButton()
+                        }
+                    },
+                    ModalityState.any(),
+                )
+            }
+        }
+    }
+
+    /**
+     * A different branch pair means the previous answer no longer applies, so it is dropped before
+     * the new one is fetched. Leaving it would let the status claim something about a pair nobody
+     * asked about.
+     */
+    private fun rescanAfterBranchChange(changed: List<RepoRow>) {
+        changed.forEach { row ->
+            row.existingRequestChecked = false
+            row.existingRequestUrl = null
+        }
+        tableModel.fireTableDataChanged()
+        updateOkButton()
+        scanForExistingRequests(changed)
     }
 
     override fun createCenterPanel(): JComponent {
@@ -188,14 +268,18 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     /**
      * A combo of every branch in the workspace, defaulting to a placeholder so nothing is
-     * overwritten until the user actually picks something. Editable, because a branch that exists
-     * in none of the repositories yet is still a legitimate target.
+     * overwritten until the user actually picks something.
+     *
+     * Not editable, so typing filters the list instead of writing into it. Nothing is lost by that:
+     * [applyBranchToAll] only touches repositories that have the branch, so a name nobody has would
+     * have been a no-op anyway. The per row cells stay editable, which is where an arbitrary branch
+     * name is genuinely useful.
      */
     private fun branchPicker(onPick: (String) -> Unit): ComboBox<String> {
         val items = (listOf(keepLabel) + allBranches).toTypedArray()
         return ComboBox(items).apply {
-            isEditable = true
             selectedItem = keepLabel
+            ComboboxSpeedSearch.installSpeedSearch(this) { it }
             addActionListener {
                 val picked = (selectedItem as? String)?.trim().orEmpty()
                 if (picked.isNotEmpty() && picked != keepLabel) onPick(picked)
@@ -210,17 +294,20 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
      */
     private fun applyBranchToAll(branch: String, source: Boolean) {
         val candidates = rows.filter { it.isReady }
-        var applied = 0
+        val changed = mutableListOf<RepoRow>()
         for (row in candidates) {
             if (branch !in row.branches) continue
+            val current = if (source) row.sourceBranch else row.targetBranch
+            if (current == branch) continue
             if (source) row.sourceBranch = branch else row.targetBranch = branch
-            applied++
+            changed += row
         }
-        tableModel.fireTableDataChanged()
+        val applied = changed.size
         val skipped = candidates.size - applied
         updateOkButton(
             if (skipped > 0) BulkMergeRequestBundle.message("dialog.bulk.skipped", branch, skipped) else null,
         )
+        rescanAfterBranchChange(changed)
     }
 
     private fun applyFilter() {
@@ -346,22 +433,29 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
     private fun supportedByAny(providers: List<GitHostProvider>, option: RequestOption): Boolean =
         providers.isEmpty() || providers.any { option in it.supportedOptions }
 
+    /** Widths by header rather than by index, because the set of columns is not fixed. */
     private fun tuneColumnWidths() {
-        val columnModel = table.columnModel
-        if (columnModel.columnCount < COLUMN_COUNT) return
-        columnModel.getColumn(COLUMN_SELECTED).apply {
-            minWidth = JBUI.scale(32)
-            maxWidth = JBUI.scale(32)
+        val widths = mapOf(
+            BulkMergeRequestBundle.message("column.project") to 140,
+            BulkMergeRequestBundle.message("column.repository") to 150,
+            BulkMergeRequestBundle.message("column.source") to 190,
+            BulkMergeRequestBundle.message("column.target") to 190,
+            BulkMergeRequestBundle.message("column.provider") to 90,
+            BulkMergeRequestBundle.message("column.status") to 190,
+        )
+
+        for (index in 0 until table.columnModel.columnCount) {
+            val column = table.columnModel.getColumn(index)
+            if (index == COLUMN_SELECTED) {
+                column.minWidth = JBUI.scale(32)
+                column.maxWidth = JBUI.scale(32)
+            } else {
+                widths[tableModel.getColumnName(index)]?.let { column.preferredWidth = JBUI.scale(it) }
+            }
         }
-        columnModel.getColumn(1).preferredWidth = JBUI.scale(140)
-        columnModel.getColumn(2).preferredWidth = JBUI.scale(150)
-        columnModel.getColumn(3).preferredWidth = JBUI.scale(190)
-        columnModel.getColumn(4).preferredWidth = JBUI.scale(190)
-        columnModel.getColumn(5).preferredWidth = JBUI.scale(90)
-        columnModel.getColumn(6).preferredWidth = JBUI.scale(190)
     }
 
-    private fun columns(): Array<ColumnInfo<RepoRow, *>> = arrayOf(
+    private fun columns(): Array<ColumnInfo<RepoRow, *>> = listOfNotNull(
         object : ColumnInfo<RepoRow, Boolean>("") {
             override fun valueOf(item: RepoRow): Boolean = item.selected
             override fun getColumnClass(): Class<*> = java.lang.Boolean::class.java
@@ -370,9 +464,11 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
                 item.selected = value
             }
         },
+        // Only worth a column when there is something to tell apart. With a single project open it
+        // would repeat the same name in every row and take space the branch columns need.
         object : ColumnInfo<RepoRow, String>(BulkMergeRequestBundle.message("column.project")) {
             override fun valueOf(item: RepoRow): String = item.projectName
-        },
+        }.takeIf { rows.map { row -> row.projectName }.distinct().size > 1 },
         object : ColumnInfo<RepoRow, String>(BulkMergeRequestBundle.message("column.repository")) {
             override fun valueOf(item: RepoRow): String = item.repositoryName
         },
@@ -392,7 +488,7 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
             override fun getRenderer(item: RepoRow): TableCellRenderer = statusRenderer
         },
-    )
+    ).toTypedArray()
 
     private fun branchColumn(
         name: String,
@@ -401,7 +497,13 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
     ): ColumnInfo<RepoRow, String> = object : ColumnInfo<RepoRow, String>(name) {
         override fun valueOf(item: RepoRow): String = get(item)
         override fun isCellEditable(item: RepoRow): Boolean = item.isReady
-        override fun setValue(item: RepoRow, value: String) = set(item, value.trim())
+
+        override fun setValue(item: RepoRow, value: String) {
+            val branch = value.trim()
+            if (branch == get(item)) return
+            set(item, branch)
+            rescanAfterBranchChange(listOf(item))
+        }
 
         /** Branch lists differ per repository, so the editor is built per row. */
         override fun getEditor(item: RepoRow): TableCellEditor {
@@ -449,7 +551,12 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
         }
     }
 
-    /** Anything that blocks a request is worth colouring, because it is the reason the row will not run. */
+    /**
+     * Colours the status, because it is the one column that says whether a row will run.
+     *
+     * An already open request is deliberately not red: nothing is broken and there is nothing to
+     * fix, the row simply has no work left. Red is reserved for what the user has to act on.
+     */
     private val statusRenderer: TableCellRenderer by lazy {
         object : DefaultTableCellRenderer() {
             override fun getTableCellRendererComponent(
@@ -463,9 +570,18 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
                 val component =
                     super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column)
                 val item = tableModel.getRowValue(table.convertRowIndexToModel(row))
-                val blocked = !item.isReady || !item.hasToken || item.sourceBranch == item.targetBranch
+                // The URL is the one piece of information the cell cannot show, so it goes here and
+                // tells the user that a double click leads somewhere.
+                toolTipText = item.existingRequestUrl
                 if (!isSelected) {
-                    foreground = if (blocked) JBColor.RED else UIUtil.getLabelForeground()
+                    foreground = when {
+                        !item.isReady || !item.hasToken || item.sourceBranch == item.targetBranch ->
+                            StatusColors.BLOCKED
+
+                        item.existingRequestUrl != null -> StatusColors.ATTENTION
+
+                        else -> StatusColors.READY
+                    }
                 }
                 return component
             }
@@ -474,6 +590,5 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     private companion object {
         const val COLUMN_SELECTED = 0
-        const val COLUMN_COUNT = 7
     }
 }

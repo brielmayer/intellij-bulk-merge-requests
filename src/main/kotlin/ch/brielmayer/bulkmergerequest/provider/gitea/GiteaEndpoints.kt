@@ -14,6 +14,14 @@ object GiteaEndpoints {
 
     fun currentUser(baseUrl: String): URI = ApiUrl.of(baseUrl, "user")
 
+    /** Gitea answers this with the single request for that branch pair, or 404 when there is none. */
+    fun findPullRequest(baseUrl: String, owner: String, repository: String, source: String, target: String): URI =
+        ApiUrl.of(
+            baseUrl,
+            "repos/${ApiUrl.encode(owner)}/${ApiUrl.encode(repository)}/pulls/" +
+                "${ApiUrl.encode(target)}/${ApiUrl.encode(source)}",
+        )
+
     fun createPullRequest(baseUrl: String, owner: String, repository: String): URI =
         ApiUrl.of(baseUrl, "repos/${ApiUrl.encode(owner)}/${ApiUrl.encode(repository)}/pulls")
 }

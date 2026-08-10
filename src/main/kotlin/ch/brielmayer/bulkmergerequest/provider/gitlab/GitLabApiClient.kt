@@ -68,6 +68,19 @@ class GitLabApiClient(
         return json.decodeFromString<Account>(execute(request)).username
     }
 
+    /** The open merge request for this branch pair, or `null`. */
+    fun findMergeRequest(projectPath: String, source: String, target: String): MergeRequest? {
+        val request = HttpRequest.newBuilder()
+            .uri(GitLabEndpoints.findMergeRequest(baseUrl, projectPath, source, target))
+            .header("PRIVATE-TOKEN", token)
+            .header("Accept", "application/json")
+            .timeout(REQUEST_TIMEOUT)
+            .GET()
+            .build()
+
+        return json.decodeFromString<List<MergeRequest>>(execute(request)).firstOrNull()
+    }
+
     private fun execute(request: HttpRequest): String {
         val response = try {
             httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))

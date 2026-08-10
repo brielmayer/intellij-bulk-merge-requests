@@ -2,6 +2,7 @@ package ch.brielmayer.bulkmergerequest.core.settings
 
 import ch.brielmayer.bulkmergerequest.BulkMergeRequestBundle
 import ch.brielmayer.bulkmergerequest.core.repo.RemoteUrl
+import ch.brielmayer.bulkmergerequest.core.ui.StatusColors
 import ch.brielmayer.bulkmergerequest.provider.AccessCheck
 import ch.brielmayer.bulkmergerequest.provider.GitHostProvider
 import com.intellij.openapi.progress.ProgressManager
@@ -153,13 +154,13 @@ class HostEditDialog(
     private fun showCheckResult(result: AccessCheck) {
         when (result) {
             is AccessCheck.Granted -> {
-                checkResultLabel.foreground = JBColor.namedColor("Label.successForeground", JBColor.GREEN.darker())
+                checkResultLabel.foreground = StatusColors.READY
                 checkResultLabel.text =
                     BulkMergeRequestBundle.message("settings.host.check.granted", result.accountName)
             }
 
             is AccessCheck.Denied -> {
-                checkResultLabel.foreground = JBColor.RED
+                checkResultLabel.foreground = StatusColors.BLOCKED
                 checkResultLabel.text = result.message
             }
 
