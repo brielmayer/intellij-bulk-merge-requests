@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Added
+
+- GitHub, Gitea and Forgejo, alongside GitLab, each on their hosted service as well as on your own
+  server
+- The dialog asks every host whether a request already covers a row's branches. Such a row is
+  unchecked and marked *Request already open*, and a double click opens the existing one
+- Branches that exist only locally are called out as *Source branch not pushed yet*, so the run no
+  longer fails on something that was visible beforehand
+- **Refresh** fetches every repository and updates branches and statuses without leaving the dialog
+- Type to search in *Source for all* and *Target for all*
+- The dialog remembers its size and position
+
+### Changed
+
+- Status is colour coded: green runs, yellow has nothing left to do, red needs you
+- The Project column appears only when more than one project is open
+- *Repositories at a time* replaces *Parallel requests*, with an explanation of what the number buys
+- The *for all* branch pickers are no longer editable. A branch none of the repositories has could
+  not be applied anyway, and typing now searches the list instead
+
 ## [0.2.0]
 
 ### Added

@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "ch.brielmayer"
-version = "0.2.0"
+version = "0.3.0"
 
 repositories {
     mavenCentral()
@@ -123,6 +123,7 @@ spotless {
     format("misc") {
         target(
             "*.md",
+            ".github/workflows/*.yml",
             "*.properties",
             "src/**/*.properties",
             "src/**/*.xml",
