@@ -1,0 +1,10 @@
+# Line endings belong to the repository, not to the machine a checkout happens on. Without this,
+# core.autocrlf on Windows checks out CRLF while Spotless writes LF, and every untouched file shows
+# up as modified with an empty diff.
+* text=auto eol=lf
+
+# Batch files are read by cmd.exe, which needs CRLF.
+*.bat text eol=crlf
+
+*.png binary
+*.jar binary

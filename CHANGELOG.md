@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+## [1.0.0]
+
+First stable release. The versions below it were withdrawn from the Marketplace, so this section
+describes what the plugin does rather than what changed since a version nobody has.
+
+### Added
+
+- Create merge requests for **all open projects** from a single dialog, one per selected repository
+- **GitLab, GitHub, Gitea and Forgejo**, each on their hosted service as well as on your own server.
+  Which host handles a repository is decided per repository, so one run can mix them
+- A repository that fails never stops the others. Afterwards a result window lists every repository
+  with its link or its error, and offers Open All, Copy Links and **Retry Failed**
+- Title and description are templates with `{project}`, `{repo}`, `{branch}`, `{source}` and
+  `{target}` placeholders, filled in per repository
+- Built for many repositories at once: filter the table, set a source or target branch across all of
+  them with type to search, override it per repository, and sort by any column
+- Before the run, the dialog says which rows will not work: no remote, no configured host, no token,
+  identical branches, a branch that was never pushed, or a request that already covers it. A double
+  click opens the request that already exists
+- **Refresh** fetches every repository without leaving the dialog
+- Requests are created in parallel, configurable under *Repositories at a time*
+- Requests follow the IDE's proxy settings, so the plugin works behind a company proxy
+- Settings hold the defaults and one access token per host, stored in the IDE password safe.
+  **Test Connection** names the account a token belongs to, and saving a host runs the same check
+- Options a host cannot honour are switched off and the hosts are named. GitHub, Gitea and Forgejo
+  decide squashing and branch deletion when merging, not when the request is created
+
 ## [0.3.0]
 
 ### Added

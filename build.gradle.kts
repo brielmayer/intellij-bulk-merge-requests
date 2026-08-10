@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "ch.brielmayer"
-version = "0.3.0"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
@@ -129,6 +129,7 @@ spotless {
             "src/**/*.xml",
             "gradle/*.toml",
             ".gitignore",
+            ".gitattributes",
             "testenv/*.md",
         )
         trimTrailingWhitespace()
