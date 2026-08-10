@@ -44,6 +44,7 @@ class RequestPlannerTest {
         remote = RemoteUrl.parse(remoteUrl),
         provider = provider,
         branches = listOf(source, target),
+        remoteBranches = setOf(source, target),
         hasToken = true,
         selected = true,
         sourceBranch = source,

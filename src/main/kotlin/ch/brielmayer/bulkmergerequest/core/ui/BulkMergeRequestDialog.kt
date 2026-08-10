@@ -11,11 +11,14 @@ import ch.brielmayer.bulkmergerequest.core.settings.BulkMergeRequestSettings
 import ch.brielmayer.bulkmergerequest.core.settings.Templates
 import ch.brielmayer.bulkmergerequest.provider.GitHostProvider
 import ch.brielmayer.bulkmergerequest.provider.RequestOption
+import com.intellij.icons.AllIcons
 import com.intellij.ide.BrowserUtil
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.options.ShowSettingsUtil
+import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogPanel
@@ -39,11 +42,13 @@ import com.intellij.util.ui.ColumnInfo
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.ListTableModel
 import com.intellij.util.ui.UIUtil
+import git4idea.fetch.GitFetchSupport
 import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import javax.swing.DefaultCellEditor
+import javax.swing.DefaultComboBoxModel
 import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -74,9 +79,6 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
     private var removeSourceBranch: Boolean = settings.state.removeSourceBranch
     private var squash: Boolean = settings.state.squash
 
-    /** Every branch known in any repository, the pool the bulk pickers offer. */
-    private val allBranches: List<String> = rows.flatMap { it.branches }.distinct().sorted()
-
     private val keepLabel: String = BulkMergeRequestBundle.message("dialog.bulk.keep")
 
     private val tableModel = ListTableModel(columns(), rows.toMutableList())
@@ -94,6 +96,18 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     private val sourceForAll = branchPicker { applyBranchToAll(it, source = true) }
     private val targetForAll = branchPicker { applyBranchToAll(it, source = false) }
+
+    /**
+     * A link rather than a bare icon: the two neighbours in that row are links, and an icon alone
+     * does not say what it does. Deliberately not a full button either, because fetching every
+     * repository is slow enough that it should not look like the obvious thing to click.
+     */
+    private val refreshLink = ActionLink(BulkMergeRequestBundle.message("dialog.refresh.action")) {
+        fetchAndRefresh()
+    }.apply {
+        setIcon(AllIcons.Actions.Refresh, false)
+        toolTipText = BulkMergeRequestBundle.message("dialog.refresh.tooltip")
+    }
 
     private val summaryLabel = JBLabel().apply { foreground = UIUtil.getContextHelpForeground() }
 
@@ -176,6 +190,47 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
     }
 
     /**
+     * Fetches every repository and rebuilds what the dialog knows about them.
+     *
+     * Without this, "not pushed yet" and "request already open" reflect the state of the last fetch,
+     * and the only way to correct them would be to close the dialog, fetch, and start over. The rows
+     * are updated in place, so branch choices and check marks survive.
+     */
+    private fun fetchAndRefresh() {
+        val repositories = rows.map { it.repository }.distinct()
+
+        object : Task.Modal(project, BulkMergeRequestBundle.message("dialog.refresh.progress"), true) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                // Both the fetch and the token lookups behind refresh are slow operations, so they
+                // belong here rather than in onSuccess, which runs on the EDT.
+                GitFetchSupport.fetchSupport(project).fetchDefaultRemote(repositories)
+                RepoCollector.refresh(rows)
+            }
+
+            override fun onSuccess() {
+                rebuildBranchPickers()
+                rows.forEach { row ->
+                    row.existingRequestChecked = false
+                    row.existingRequestUrl = null
+                }
+                tableModel.fireTableDataChanged()
+                updateOkButton()
+                scanForExistingRequests(rows)
+            }
+        }.queue()
+    }
+
+    /** New branches only reach the bulk pickers if their model is rebuilt with them. */
+    private fun rebuildBranchPickers() {
+        val branches = rows.flatMap { it.branches }.distinct().sorted()
+        listOf(sourceForAll, targetForAll).forEach { picker ->
+            picker.model = DefaultComboBoxModel((listOf(keepLabel) + branches).toTypedArray())
+            picker.selectedItem = keepLabel
+        }
+    }
+
+    /**
      * A different branch pair means the previous answer no longer applies, so it is dropped before
      * the new one is fetched. Leaving it would let the status claim something about a pair nobody
      * asked about.
@@ -246,7 +301,9 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
         row {
             link(BulkMergeRequestBundle.message("dialog.link.selectAll")) { setAllSelected(true) }
             link(BulkMergeRequestBundle.message("dialog.link.deselectAll")) { setAllSelected(false) }
-            cell(summaryLabel)
+            // The summary column takes the slack, which is what pushes refresh to the right edge.
+            cell(summaryLabel).resizableColumn()
+            cell(refreshLink).align(AlignX.RIGHT)
         }
     }.apply {
         border = JBUI.Borders.emptyBottom(6)
@@ -276,7 +333,7 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
      * name is genuinely useful.
      */
     private fun branchPicker(onPick: (String) -> Unit): ComboBox<String> {
-        val items = (listOf(keepLabel) + allBranches).toTypedArray()
+        val items = (listOf(keepLabel) + rows.flatMap { it.branches }.distinct().sorted()).toTypedArray()
         return ComboBox(items).apply {
             selectedItem = keepLabel
             ComboboxSpeedSearch.installSpeedSearch(this) { it }
@@ -575,8 +632,8 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
                 toolTipText = item.existingRequestUrl
                 if (!isSelected) {
                     foreground = when {
-                        !item.isReady || !item.hasToken || item.sourceBranch == item.targetBranch ->
-                            StatusColors.BLOCKED
+                        !item.isReady || !item.hasToken || item.sourceBranch == item.targetBranch ||
+                            !item.sourceBranchPushed || !item.targetBranchPushed -> StatusColors.BLOCKED
 
                         item.existingRequestUrl != null -> StatusColors.ATTENTION
 

@@ -54,6 +54,7 @@ windows.
 |---|---|
 | **Title**, **Description** | Templates, filled in per repository |
 | **Source for all**, **Target for all** | Sets one branch everywhere, type to search the list. Repositories without that branch keep theirs |
+| **Refresh** | Fetches every repository, so branch lists and statuses match what the servers actually have |
 | **Filter** | Matches project, repository and branch names. *Select all* and *Deselect all* apply to what you see |
 | **Status** | Says whether a row will run. Green is ready, yellow means a request already covers those branches, red needs your attention |
 | **Delete source branch**, **Squash** | GitLab only. The other hosts decide this when merging, so the boxes switch off and say so |
@@ -74,6 +75,7 @@ existing one.
 | No provider configured for this host | Add the host in the settings. The link at the bottom of the dialog takes you there, and the rows update when you return |
 | No access token | Same place |
 | Source and target are identical | Pick another branch in that row |
+| Source branch not pushed yet | Push it first. The host can only open a request between branches it has |
 
 ## After the run
 
@@ -82,8 +84,7 @@ One notification, for example *Created 12 of 14 Merge Requests*.
 If anything failed, a window lists every repository with its link or its error, and lets you open
 them all, copy the links, or **retry only the failed ones**. Double click a row to open it.
 
-Usual suspects: the source branch was never pushed, a merge request already exists, or the token
-expired.
+Usual suspects: a merge request already exists, or the token expired.
 
 ## Settings
 

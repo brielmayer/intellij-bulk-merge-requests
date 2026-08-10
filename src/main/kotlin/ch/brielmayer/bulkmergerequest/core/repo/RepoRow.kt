@@ -21,7 +21,10 @@ class RepoRow(
      * open. Mutable for exactly that reason, see [RepoCollector.refreshProviders].
      */
     var provider: GitHostProvider?,
-    val branches: List<String>,
+    /** Both lists change on a refresh, which is why they are not immutable. */
+    var branches: List<String>,
+    /** Branches the remote had at the last fetch. See [sourceBranchPushed]. */
+    var remoteBranches: Set<String>,
     /** Resolved on demand, because reading PasswordSafe per table repaint would block the EDT. */
     var hasToken: Boolean,
     var selected: Boolean,
@@ -44,7 +47,15 @@ class RepoRow(
 
     /** Rows that can produce a request are checked by default; identical branches cannot. */
     val selectableByDefault: Boolean
-        get() = isReady && sourceBranch != targetBranch
+        get() = isReady && sourceBranch != targetBranch && sourceBranchPushed && targetBranchPushed
+
+    /**
+     * Whether the remote is known to have this branch. A host cannot open a request from a branch it
+     * has never seen, so a local only branch fails once the run starts.
+     */
+    val sourceBranchPushed: Boolean get() = sourceBranch in remoteBranches
+
+    val targetBranchPushed: Boolean get() = targetBranch in remoteBranches
 
     /** Which host will handle this row. Empty when no provider claims the remote. */
     fun providerName(): String = provider?.displayName.orEmpty()
@@ -60,6 +71,8 @@ class RepoRow(
         branches.isEmpty() -> BulkMergeRequestBundle.message("row.status.noBranches")
         !hasToken -> BulkMergeRequestBundle.message("row.status.noToken")
         sourceBranch == targetBranch -> BulkMergeRequestBundle.message("row.status.sameBranch")
+        !sourceBranchPushed -> BulkMergeRequestBundle.message("row.status.sourceNotPushed")
+        !targetBranchPushed -> BulkMergeRequestBundle.message("row.status.targetNotPushed")
         existingRequestUrl != null -> BulkMergeRequestBundle.message("row.status.alreadyExists")
         else -> BulkMergeRequestBundle.message("row.status.ready")
     }

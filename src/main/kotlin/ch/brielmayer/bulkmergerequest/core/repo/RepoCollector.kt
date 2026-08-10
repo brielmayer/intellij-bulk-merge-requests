@@ -56,6 +56,24 @@ object RepoCollector {
         }
     }
 
+    /**
+     * Re-reads the branches of every row from Git, then re-resolves providers and tokens.
+     *
+     * Called after a fetch, so what the dialog knows about the remotes matches what the remotes
+     * actually have. The rows are updated in place, which is what keeps the branch choices and check
+     * marks the user has already made.
+     *
+     * Must not run on the EDT.
+     */
+    fun refresh(rows: List<RepoRow>) {
+        rows.map { it.repository }.distinct().forEach { it.update() }
+        rows.forEach { row ->
+            row.branches = branchesOf(row.repository)
+            row.remoteBranches = remoteBranchesOf(row.repository)
+        }
+        refreshProviders(rows)
+    }
+
     /** Hosts found in the currently open projects, used to prefill the settings dialog. */
     fun detectHosts(): List<String> = ProjectManager.getInstance().openProjects
         .filter { !it.isDisposed && it.isInitialized }
@@ -74,6 +92,7 @@ object RepoCollector {
         val remote = RemoteUrl.parse(remoteUrl)
         val provider = remoteUrl?.let { GitHostProvider.forRemote(it) }
         val branches = branchesOf(repository)
+        val remoteBranches = remoteBranchesOf(repository)
         val source = repository.currentBranchName ?: branches.firstOrNull().orEmpty()
         val target = pickTarget(branches, defaultTargetBranch, source)
         val hasToken = remote?.host?.let { host -> tokenCache.getOrPut(host) { TokenStore.hasToken(host) } } ?: false
@@ -86,11 +105,13 @@ object RepoCollector {
             remote = remote,
             provider = provider,
             branches = branches,
+            remoteBranches = remoteBranchesOf(repository),
             hasToken = hasToken,
             // Checked by default, because the batch is the point. A missing token does not uncheck the
             // row: validation then names the host, which is more useful than a silently empty
             // selection.
-            selected = provider != null && branches.isNotEmpty() && source.isNotEmpty() && source != target,
+            selected = provider != null && branches.isNotEmpty() && source.isNotEmpty() && source != target &&
+                source in remoteBranches && target in remoteBranches,
             sourceBranch = source,
             targetBranch = target,
         )
@@ -105,9 +126,17 @@ object RepoCollector {
     /** Local branches plus remote branches (without the remote prefix), de-duplicated. */
     private fun branchesOf(repository: GitRepository): List<String> {
         val local = repository.branches.localBranches.map { it.name }
-        val remote = repository.branches.remoteBranches.map { it.nameForRemoteOperations }
-        return (local + remote).filter { it.isNotBlank() }.distinct().sorted()
+        return (local + remoteBranchesOf(repository)).filter { it.isNotBlank() }.distinct().sorted()
     }
+
+    /**
+     * Branches the remote is known to have, as of the last fetch.
+     *
+     * A host can only open a request between branches it has, so a branch missing here is one the
+     * run would fail on. The information can be stale, which is why it only warns and never blocks.
+     */
+    private fun remoteBranchesOf(repository: GitRepository): Set<String> =
+        repository.branches.remoteBranches.map { it.nameForRemoteOperations }.filter { it.isNotBlank() }.toSet()
 
     private fun pickTarget(branches: List<String>, configuredDefault: String?, source: String): String {
         configuredDefault?.takeIf { it.isNotBlank() && branches.contains(it) }?.let { return it }

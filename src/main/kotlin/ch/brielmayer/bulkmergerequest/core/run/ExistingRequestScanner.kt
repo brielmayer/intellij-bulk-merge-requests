@@ -27,7 +27,11 @@ object ExistingRequestScanner {
         isCancelled: () -> Boolean = { false },
         onResult: (row: RepoRow, result: ScanResult) -> Unit,
     ) {
-        val candidates = rows.filter { it.isReady && it.sourceBranch != it.targetBranch }
+        // A branch the remote does not have cannot carry a request either, so asking about it wastes
+        // a round trip.
+        val candidates = rows.filter {
+            it.isReady && it.sourceBranch != it.targetBranch && it.sourceBranchPushed && it.targetBranchPushed
+        }
         if (candidates.isEmpty()) return
 
         val workers = concurrency.coerceIn(1, RequestExecutor.MAX_CONCURRENCY)
