@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+## [1.0.1]
+
+### Changed
+
+- The filter and the *Source for all* and *Target for all* pickers now share the width of the dialog
+  evenly. Making the dialog wider widens all three, where before the filter took everything
+
+### Fixed
+
+- *Refresh* no longer widens the dialog when a repository has long branch names. The full name is
+  available as a tooltip instead, in both pickers as well as in the branch columns of the table
+
 ## [1.0.0]
 
 First stable release. The versions below it were withdrawn from the Marketplace, so this section
