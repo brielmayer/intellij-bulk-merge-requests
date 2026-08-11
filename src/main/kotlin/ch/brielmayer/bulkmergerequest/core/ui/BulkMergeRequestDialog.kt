@@ -26,8 +26,8 @@ import com.intellij.openapi.ui.DialogWrapper
 import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.ui.ComboboxSpeedSearch
 import com.intellij.ui.DocumentAdapter
-import com.intellij.ui.JBColor
 import com.intellij.ui.SearchTextField
+import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.components.ActionLink
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
@@ -51,6 +51,7 @@ import javax.swing.DefaultCellEditor
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComboBox
 import javax.swing.JComponent
+import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JTable
 import javax.swing.RowFilter
@@ -92,6 +93,9 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     private val filterField = SearchTextField(false).apply {
         textEditor.emptyText.text = BulkMergeRequestBundle.message("dialog.filter.hint")
+        // A text field without columns has no width of its own, and would start out narrower than
+        // the two pickers next to it. Wide enough for the hint above, and it grows with the dialog.
+        textEditor.columns = 24
     }
 
     private val sourceForAll = branchPicker { applyBranchToAll(it, source = true) }
@@ -291,12 +295,15 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     /** Filter, bulk branch pickers and selection actions: everything that scales the table. */
     private fun createTableToolbar(): DialogPanel = panel {
+        // All three take a share of the extra width, so widening the dialog widens the filter and
+        // both pickers alike. With only the filter resizable it swallowed everything and the pickers
+        // stayed at the width they start with.
         row {
             cell(filterField).align(AlignX.FILL).resizableColumn()
             label(BulkMergeRequestBundle.message("dialog.bulk.source"))
-            cell(sourceForAll)
+            cell(sourceForAll).align(AlignX.FILL).resizableColumn()
             label(BulkMergeRequestBundle.message("dialog.bulk.target"))
-            cell(targetForAll)
+            cell(targetForAll).align(AlignX.FILL).resizableColumn()
         }
         row {
             link(BulkMergeRequestBundle.message("dialog.link.selectAll")) { setAllSelected(true) }
@@ -331,17 +338,30 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
      * [applyBranchToAll] only touches repositories that have the branch, so a name nobody has would
      * have been a no-op anyway. The per row cells stay editable, which is where an arbitrary branch
      * name is genuinely useful.
+     *
+     * The width has to be set, because a combo box otherwise sizes itself to its longest entry: a
+     * fetch pulls in every remote branch, and one `feature/...` name is enough to push the toolbar
+     * wider than the dialog. It is a starting width, not a cap, and the row lets it grow from there.
      */
     private fun branchPicker(onPick: (String) -> Unit): ComboBox<String> {
         val items = (listOf(keepLabel) + rows.flatMap { it.branches }.distinct().sorted()).toTypedArray()
         return ComboBox(items).apply {
+            setMinimumAndPreferredWidth(JBUI.scale(BRANCH_WIDTH))
+            renderer = BranchListRenderer()
             selectedItem = keepLabel
+            showSelectionAsTooltip()
             ComboboxSpeedSearch.installSpeedSearch(this) { it }
             addActionListener {
+                // What is shown may be cut off, so the full name has to be reachable somehow.
+                showSelectionAsTooltip()
                 val picked = (selectedItem as? String)?.trim().orEmpty()
                 if (picked.isNotEmpty() && picked != keepLabel) onPick(picked)
             }
         }
+    }
+
+    private fun ComboBox<String>.showSelectionAsTooltip() {
+        toolTipText = (selectedItem as? String)?.takeIf { it != keepLabel }
     }
 
     /**
@@ -495,8 +515,8 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
         val widths = mapOf(
             BulkMergeRequestBundle.message("column.project") to 140,
             BulkMergeRequestBundle.message("column.repository") to 150,
-            BulkMergeRequestBundle.message("column.source") to 190,
-            BulkMergeRequestBundle.message("column.target") to 190,
+            BulkMergeRequestBundle.message("column.source") to BRANCH_WIDTH,
+            BulkMergeRequestBundle.message("column.target") to BRANCH_WIDTH,
             BulkMergeRequestBundle.message("column.provider") to 90,
             BulkMergeRequestBundle.message("column.status") to 190,
         )
@@ -515,7 +535,7 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
     private fun columns(): Array<ColumnInfo<RepoRow, *>> = listOfNotNull(
         object : ColumnInfo<RepoRow, Boolean>("") {
             override fun valueOf(item: RepoRow): Boolean = item.selected
-            override fun getColumnClass(): Class<*> = java.lang.Boolean::class.java
+            override fun getColumnClass(): Class<*> = Boolean::class.javaObjectType
             override fun isCellEditable(item: RepoRow): Boolean = item.isReady
             override fun setValue(item: RepoRow, value: Boolean) {
                 item.selected = value
@@ -566,6 +586,7 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
         override fun getEditor(item: RepoRow): TableCellEditor {
             val comboBox = ComboBox(item.branches.toTypedArray()).apply {
                 isEditable = true
+                renderer = BranchListRenderer()
                 selectedItem = get(item)
             }
             return object : DefaultCellEditor(comboBox) {
@@ -599,12 +620,42 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
     private val branchRenderer: TableCellRenderer by lazy {
         val component = JComboBox<String>()
         TableCellRenderer { table, value, _, _, row, _ ->
+            val branch = value?.toString().orEmpty()
             component.removeAllItems()
-            component.addItem(value?.toString().orEmpty())
+            component.addItem(branch)
+            // A branch name longer than the column is cut off, and the cell has nowhere else to put
+            // it. JTable asks the renderer for the tooltip, so setting it here is enough.
+            component.toolTipText = branch.takeIf { it.isNotEmpty() }
             // The renderer gets a view index; with sorting or filtering active that is not the
             // model index.
             component.isEnabled = tableModel.getRowValue(table.convertRowIndexToModel(row)).isReady
             component
+        }
+    }
+
+    /**
+     * Offers the full branch name as a tooltip, wherever a branch is offered for picking: both the
+     * bulk pickers and the branch cells are narrower than a long name needs.
+     *
+     * The list is given a tooltip of its own on the way: [JList.getToolTipText] does ask the
+     * renderer, but the tooltip manager only tracks components that carry one, and the popup list of
+     * a combo box never sets one.
+     *
+     * A class rather than a single shared instance, because a renderer is a component and a
+     * component that is also a Kotlin `object` survives deserialization as a second instance.
+     * Nothing here is worth sharing: the renderer holds no state between calls.
+     */
+    private class BranchListRenderer : SimpleListCellRenderer<String>() {
+        override fun customize(
+            list: JList<out String>,
+            value: String?,
+            index: Int,
+            selected: Boolean,
+            hasFocus: Boolean,
+        ) {
+            text = value
+            toolTipText = value
+            if (list.toolTipText == null) list.toolTipText = ""
         }
     }
 
@@ -647,5 +698,6 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
 
     private companion object {
         const val COLUMN_SELECTED = 0
+        const val BRANCH_WIDTH = 190
     }
 }
