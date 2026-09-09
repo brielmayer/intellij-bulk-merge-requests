@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.0.2]
+
+### Changed
+
+- The message bundle no longer uses a deprecated platform API that is scheduled for removal, so the
+  plugin keeps loading its user-facing strings on future IDE releases
+
 ## [1.0.1]
 
 ### Changed

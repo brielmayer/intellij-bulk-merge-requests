@@ -7,7 +7,7 @@ import org.jetbrains.annotations.PropertyKey
 private const val BUNDLE = "messages.BulkMergeRequestBundle"
 
 /** All user-facing strings live here. English default, prepared for i18n. */
-object BulkMergeRequestBundle : DynamicBundle(BUNDLE) {
+object BulkMergeRequestBundle : DynamicBundle(BulkMergeRequestBundle::class.java, BUNDLE) {
 
     @Nls
     @JvmStatic
