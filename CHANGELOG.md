@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Added
 
 - The IDE's *Push successful* notification now has a link *Bulk Merge Requests for Pushed
