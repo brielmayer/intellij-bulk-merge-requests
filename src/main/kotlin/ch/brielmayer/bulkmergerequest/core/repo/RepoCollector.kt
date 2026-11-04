@@ -8,7 +8,7 @@ import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryManager
 
 /**
- * Collects every Git repository of every open project.
+ * Collects every Git repository of every open project, each checkout once.
  *
  * Must not run on the EDT: resolving providers and reading PasswordSafe may block.
  */
@@ -23,11 +23,18 @@ object RepoCollector {
 
         return ProjectManager.getInstance().openProjects
             .filter { !it.isDisposed && it.isInitialized }
+            // Visited in name order so that, when the same checkout is reachable from more than one
+            // project, the row that survives below is always the same one.
+            .sortedBy { it.name }
             .flatMap { project ->
-                val projectName = project.name
-                GitRepositoryManager.getInstance(project).repositories.map { repository ->
-                    toRow(projectName, repository, settings.defaultTargetBranch, tokenCache)
-                }
+                GitRepositoryManager.getInstance(project).repositories.map { project to it }
+            }
+            // One checkout can belong to several open projects: attached to a composite in one
+            // window and opened on its own in another. It is still a single working copy with a
+            // single remote, so listing it twice would offer to create the same request twice.
+            .distinctBy { (_, repository) -> repository.root.path }
+            .map { (project, repository) ->
+                toRow(project.name, repository, settings.defaultTargetBranch, tokenCache)
             }
             .sortedWith(compareBy({ it.projectName }, { it.repositoryName }))
     }

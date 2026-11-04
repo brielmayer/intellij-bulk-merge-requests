@@ -69,7 +69,11 @@ import javax.swing.table.TableRowSorter
  * branch per row before the batch runs. Everything above the table exists so that a workspace with
  * dozens of repositories stays workable: filter, bulk branch pickers and select/deselect.
  */
-class BulkMergeRequestDialog(private val project: Project, private val rows: List<RepoRow>) : DialogWrapper(project) {
+class BulkMergeRequestDialog(
+    private val project: Project,
+    private val rows: List<RepoRow>,
+    private val dialogTitle: String = BulkMergeRequestBundle.message("dialog.title"),
+) : DialogWrapper(project) {
 
     private val settings = BulkMergeRequestSettings.getInstance()
 
@@ -123,7 +127,7 @@ class BulkMergeRequestDialog(private val project: Project, private val rows: Lis
     private lateinit var optionsPanel: DialogPanel
 
     init {
-        title = BulkMergeRequestBundle.message("dialog.title")
+        title = dialogTitle
         init()
         table.rowSorter = rowSorter
         rowSorter.setSortable(COLUMN_SELECTED, true)

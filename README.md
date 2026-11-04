@@ -48,6 +48,10 @@ windows.
 
 **3.** `Git | Bulk Merge Requests…`
 
+Or straight after a push: the IDE's *Push successful* notification has a link *Bulk Merge Requests
+for Pushed Branches…*, which opens the dialog with only the pushed repositories, each with its pushed
+branch as source.
+
 ## The dialog
 
 | | |

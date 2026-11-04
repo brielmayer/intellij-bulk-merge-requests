@@ -1,6 +1,7 @@
 import com.diffplug.spotless.LineEnding
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import java.time.Duration
 
@@ -76,7 +77,8 @@ intellijPlatform {
 
         ideaVersion {
             sinceBuild = "253"
-            // No upper bound: the plugin only uses long-term stable platform API.
+            // No upper bound: apart from the push notification link, which uses an internal Git4Idea
+            // extension point (see PushNotificationCustomizer), the plugin only uses stable API.
             untilBuild = provider { null }
         }
     }
@@ -85,6 +87,10 @@ intellijPlatform {
         ides {
             recommended()
         }
+        // Everything fails the build except internal API usages: the push notification link has no
+        // other way in than an internal Git4Idea extension point (see PushNotificationCustomizer).
+        // They are still listed in the report, so any new one shows up there.
+        failureLevel = VerifyPluginTask.FailureLevel.ALL - VerifyPluginTask.FailureLevel.INTERNAL_API_USAGES
     }
 
     // Optional. Without a key the Marketplace signs the plugin with its own certificate; signing it

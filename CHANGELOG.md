@@ -2,6 +2,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- The IDE's *Push successful* notification now has a link *Bulk Merge Requests for Pushed
+  Branches*. It opens the dialog with only the pushed repositories, each with its pushed branch as
+  source. One link per push, however many repositories it covered
+
+### Fixed
+
+- A repository that is open twice, attached to a composite project in one window and on its own in
+  another, was listed once per project. Every working copy is now a single row, so the same merge
+  request can no longer be created twice in one run
+
 ## [1.0.2]
 
 ### Changed

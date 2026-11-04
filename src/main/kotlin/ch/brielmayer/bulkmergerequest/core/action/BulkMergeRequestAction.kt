@@ -29,35 +29,50 @@ class BulkMergeRequestAction :
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-
-        // Provider resolution and PasswordSafe lookups must not run on the EDT.
-        val rows: List<RepoRow> = ProgressManager.getInstance()
-            .runProcessWithProgressSynchronously<List<RepoRow>, Exception>(
-                { RepoCollector.collect() },
-                BulkMergeRequestBundle.message("task.collecting"),
-                true,
-                project,
-            )
-
-        if (rows.isEmpty()) {
-            Messages.showInfoMessage(
-                project,
-                BulkMergeRequestBundle.message("message.noRepositories"),
-                BulkMergeRequestBundle.message("dialog.title"),
-            )
-            return
-        }
-
-        val dialog = BulkMergeRequestDialog(project, rows)
-        if (!dialog.showAndGet()) return
-
-        val plans = RequestPlanner.plan(dialog.selectedRows(), dialog.options())
-        if (plans.isEmpty()) return
-
-        ProgressManager.getInstance().run(BulkMergeRequestTask(project, plans))
+        open(project)
     }
 
     private fun hasGitRepository(project: Project): Boolean = !project.isDisposed &&
         project.isInitialized &&
         GitRepositoryManager.getInstance(project).repositories.isNotEmpty()
+
+    companion object {
+
+        /**
+         * Collects the rows, shows the dialog and runs the batch. Must be called on the EDT.
+         *
+         * [prepare] narrows and adjusts the freshly collected rows before the dialog shows them; the
+         * push notification uses it to show only what was just pushed. When it leaves nothing,
+         * [emptyMessage] says why.
+         */
+        fun open(
+            project: Project,
+            title: String = BulkMergeRequestBundle.message("dialog.title"),
+            emptyMessage: String = BulkMergeRequestBundle.message("message.noRepositories"),
+            prepare: (List<RepoRow>) -> List<RepoRow> = { it },
+        ) {
+            // Provider resolution and PasswordSafe lookups must not run on the EDT.
+            val collected: List<RepoRow> = ProgressManager.getInstance()
+                .runProcessWithProgressSynchronously<List<RepoRow>, Exception>(
+                    { RepoCollector.collect() },
+                    BulkMergeRequestBundle.message("task.collecting"),
+                    true,
+                    project,
+                )
+
+            val rows = prepare(collected)
+            if (rows.isEmpty()) {
+                Messages.showInfoMessage(project, emptyMessage, title)
+                return
+            }
+
+            val dialog = BulkMergeRequestDialog(project, rows, title)
+            if (!dialog.showAndGet()) return
+
+            val plans = RequestPlanner.plan(dialog.selectedRows(), dialog.options())
+            if (plans.isEmpty()) return
+
+            ProgressManager.getInstance().run(BulkMergeRequestTask(project, plans))
+        }
+    }
 }
