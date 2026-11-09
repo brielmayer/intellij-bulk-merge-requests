@@ -2,7 +2,24 @@
 
 ## [Unreleased]
 
-## [1.1.0]
+## [1.1.1]
+
+First release since 1.0.2: 1.1.0 was refused by the Marketplace and never published.
+
+### Added
+
+- After a push, a notification next to the IDE's *Push successful* message offers *Create merge
+  requests for pushed branches* (or *pull requests*, depending on the host). It opens the dialog
+  with only the pushed repositories, each with its pushed branch as source. One notification per
+  push, however many repositories it covered, and it can be turned off in the notification settings
+
+### Fixed
+
+- A repository that is open twice, attached to a composite project in one window and on its own in
+  another, was listed once per project. Every working copy is now a single row, so the same merge
+  request can no longer be created twice in one run
+
+## [1.1.0] - not published
 
 ### Added
 

@@ -5,7 +5,7 @@ import ch.brielmayer.bulkmergerequest.core.repo.RepoRow
 /**
  * The branches one push sent to the remotes, keyed by repository root path.
  *
- * Filled while the IDE asks [PushNotificationCustomizer] about each repository of that push, and read
+ * Filled while the IDE reports each repository of that push to [PushNotifier], and read
  * when the user clicks the link in the notification. Both happen on different threads, hence the
  * synchronization.
  */

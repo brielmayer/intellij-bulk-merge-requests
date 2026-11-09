@@ -48,9 +48,10 @@ windows.
 
 **3.** `Git | Bulk Merge Requests…`
 
-Or straight after a push: the IDE's *Push successful* notification has a link *Bulk Merge Requests
-for Pushed Branches…*, which opens the dialog with only the pushed repositories, each with its pushed
-branch as source.
+Or straight after a push: a notification next to the IDE's *Push successful* message has a link
+*Create merge requests for pushed branches*, which opens the dialog with only the pushed repositories,
+each with its pushed branch as source. It can be turned off under `Settings | Appearance & Behavior |
+Notifications | Bulk Merge Requests: after push`.
 
 ## The dialog
 

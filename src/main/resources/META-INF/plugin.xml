@@ -14,8 +14,8 @@
     Built for workspaces with many repositories: filter the table, set a source or target branch across all
     of them at once, and override it per repository where needed.
     <br/><br/>
-    Right after a push, the IDE's push notification offers a link that opens the dialog with just the
-    pushed repositories and branches.
+    Right after a push, a notification offers a link that opens the dialog with just the pushed
+    repositories and branches.
     <br/><br/>
     Supported hosts: <b>GitLab</b>, <b>GitHub</b>, <b>Gitea</b> and <b>Forgejo</b>, each on their hosted
     service as well as on your own server. Access tokens are stored in the IDE password safe.
@@ -47,6 +47,13 @@
             displayType="STICKY_BALLOON"
             bundle="messages.BulkMergeRequestBundle"
             key="notification.group"/>
+
+        <!-- Separate group, so the link after every push can be turned off without the results. -->
+        <notificationGroup
+            id="Bulk Merge Requests: Push"
+            displayType="BALLOON"
+            bundle="messages.BulkMergeRequestBundle"
+            key="notification.group.push"/>
     </extensions>
 
     <extensions defaultExtensionNs="ch.brielmayer.bulkmergerequest">
@@ -56,11 +63,12 @@
         <gitHostProvider implementation="ch.brielmayer.bulkmergerequest.provider.gitea.ForgejoProvider"/>
     </extensions>
 
-    <extensions defaultExtensionNs="Git4Idea">
-        <!-- Adds the link to the IDE's "Push successful" notification. -->
-        <gitPushNotificationCustomizer
-            implementation="ch.brielmayer.bulkmergerequest.core.push.PushNotificationCustomizer"/>
-    </extensions>
+    <projectListeners>
+        <!-- Offers the link after every push. -->
+        <listener
+            class="ch.brielmayer.bulkmergerequest.core.push.PushListener"
+            topic="git4idea.push.GitPushListener"/>
+    </projectListeners>
 
     <actions>
         <action

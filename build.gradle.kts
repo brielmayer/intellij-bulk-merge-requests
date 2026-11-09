@@ -14,7 +14,7 @@ plugins {
 }
 
 group = "ch.brielmayer"
-version = "1.1.0"
+version = "1.1.1"
 
 repositories {
     mavenCentral()
@@ -77,8 +77,8 @@ intellijPlatform {
 
         ideaVersion {
             sinceBuild = "253"
-            // No upper bound: apart from the push notification link, which uses an internal Git4Idea
-            // extension point (see PushNotificationCustomizer), the plugin only uses stable API.
+            // No upper bound: apart from GitPushListener (experimental, see PushListener) the plugin
+            // only uses stable API.
             untilBuild = provider { null }
         }
     }
@@ -87,10 +87,10 @@ intellijPlatform {
         ides {
             recommended()
         }
-        // Everything fails the build except internal API usages: the push notification link has no
-        // other way in than an internal Git4Idea extension point (see PushNotificationCustomizer).
-        // They are still listed in the report, so any new one shows up there.
-        failureLevel = VerifyPluginTask.FailureLevel.ALL - VerifyPluginTask.FailureLevel.INTERNAL_API_USAGES
+        // Everything fails the build except experimental API usages: the push notification needs
+        // GitPushListener (see PushListener). The Marketplace accepts experimental API but refuses
+        // internal API (1.1.0 was rejected for it), so internal usages must keep failing here.
+        failureLevel = VerifyPluginTask.FailureLevel.ALL - VerifyPluginTask.FailureLevel.EXPERIMENTAL_API_USAGES
     }
 
     // Optional. Without a key the Marketplace signs the plugin with its own certificate; signing it
